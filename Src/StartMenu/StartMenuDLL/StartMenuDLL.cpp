@@ -3533,6 +3533,12 @@ static LRESULT CALLBACK HookDesktopThreadMouse(int code, WPARAM wParam, LPARAM l
 			{
 				// steal messages from other than our custom button window
 				PostMessage(taskBar->oldButton, (UINT)wParam, 0, MAKELPARAM(info->pt.x, info->pt.y));
+				// Do bypass when Start button replace disabled or set on special custom button (with only "pressed" icon for ex.)
+				// This allows taskbar to display default hover animation
+				if (wParam == WM_MOUSEMOVE &&
+					!CMenuContainer::IsMenuOpened() &&
+					(!GetSettingBool(L"EnableStartButton") || GetStartButtonType() == START_BUTTON_CUSTOM))
+					return CallNextHookEx(NULL, code, wParam, lParam);
 				return 1;
 			}
 		}
