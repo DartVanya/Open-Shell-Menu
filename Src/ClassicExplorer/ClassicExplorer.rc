@@ -382,6 +382,20 @@ BEGIN
     IDS_TREE_STYLE_TIP      "Pick the style for the folder tree in the navigation pane"
     IDS_XPCLASSIC           "Windows XP Classic"
     IDS_XPCLASSIC_TIP       "The navigation pane has lines connecting the folders"
+	IDS_LOCK_TOOLBAR		"Lock toolbar (Windows 11)"
+	IDS_LOCK_TOOLBAR_TIP    "Force to lock the toolbar. This setting is usefull in Windows 11, it supress menu and always show tollbar in selected locked position.\nRecommend to use togeter this ""Lock the tollbars"""
+	IDS_LOCK_TO_NOTHING		"Nothing"
+	IDS_LOCK_TO_NOTHING_TIP	"Do not lock the toolbar and leave default behavior"
+	IDS_LOCK_TO_LEFT		"Left"
+	IDS_LOCK_TO_LEFT_TIP	"Lock the toolbar to left side"
+	IDS_LOCK_TO_CENTER		"Center"
+	IDS_LOCK_TO_CENTER_TIP	"Lock the toolbar to center of window"
+	IDS_LOCK_TO_RIGHT		"Right"
+	IDS_LOCK_TO_RIGHT_TIP	"Lock the toolbar to right side"
+	IDS_LOCK_TO_CUSTOM		"Custom offset"
+	IDS_LOCK_TO_CUSTOM_TIP	"Lock the toolbar to custom offset"
+	IDS_LOCK_TO_OFFSET		"Offset"
+	IDS_LOCK_TO_OFFSET_TIP	"Specify offset relative to left corner of toolbar's panel"
 END
 
 STRINGTABLE 

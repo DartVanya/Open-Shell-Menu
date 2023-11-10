@@ -322,7 +322,22 @@
 #define IDS_STATUS_FONT                 2244
 #define IDS_STATUS_FONT_TIP             2245
 #define IDS_FOLDEROPTIONS               2246
-#define IDS_FOLDEROPTIONS_TIP           2247
+#define IDS_FOLDEROPTIONS_TIP           2248
+#define IDS_LOCK_TOOLBAR	            2249
+#define IDS_LOCK_TOOLBAR_TIP            2250
+#define IDS_LOCK_TO_NOTHING             2251
+#define IDS_LOCK_TO_NOTHING_TIP         2252
+#define IDS_LOCK_TO_LEFT                2253
+#define IDS_LOCK_TO_LEFT_TIP            2254
+#define IDS_LOCK_TO_CENTER              2255
+#define IDS_LOCK_TO_CENTER_TIP          2256
+#define IDS_LOCK_TO_RIGHT               2257
+#define IDS_LOCK_TO_RIGHT_TIP           2258
+#define IDS_LOCK_TO_CUSTOM              2259
+#define IDS_LOCK_TO_CUSTOM_TIP          2260
+#define IDS_LOCK_TO_OFFSET              2261
+#define IDS_LOCK_TO_OFFSET_TIP          2262
+
 
 // Next default values for new objects
 // 

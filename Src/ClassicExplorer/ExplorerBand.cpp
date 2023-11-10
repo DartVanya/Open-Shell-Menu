@@ -229,6 +229,9 @@ LRESULT CALLBACK CBandWindow::ToolbarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 		// Also refresh the buttons when the folder settings change
 		if (pThis->HasFolderSettings())
 			::PostMessage((HWND)dwRefData,CBandWindow::BWM_UPDATETOOLBAR,0,0);
+
+		if (GetWinVersion() >= WIN_VER_WIN10)
+			::InvalidateRect(::GetParent((HWND)dwRefData), NULL, TRUE);
 	}
 	if (uMsg==WM_PAINT)
 	{
@@ -239,8 +242,80 @@ LRESULT CALLBACK CBandWindow::ToolbarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 	return DefSubclassProc(hWnd,uMsg,wParam,lParam);
 }
 
+// This subclass proc only installs in Win10+
+LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
+	if (uMsg == WM_NOTIFY) {
+		CBandWindow* pThis = (CBandWindow*)uIdSubclass;
+		RECT rect;
+
+		int LockTollbarTo = GetSettingInt(L"LockTollbarTo");
+		if (LockTollbarTo) {
+			//HWND hTB = ((LPNMHDR)lParam)->hwndFrom;	// in this case Toolbar can be destroed instead of menu bar
+			HWND hTB = pThis->GetToolbar();
+			HWND hRebar = pThis->GetParent();
+			HWND hMenuTB = NULL;
+			if (hMenuTB = FindWindowEx(hRebar, NULL, TOOLBARCLASSNAME, NULL))
+				if (hMenuTB != hTB)
+					::DestroyWindow(hMenuTB);	// destroy menu bar so it does not overlap a toolbar
+			RECT rectReBar;
+			SIZE size;
+			::GetWindowRect(hTB, &rect);
+			::GetWindowRect(hRebar, &rectReBar);
+			::MapWindowPoints(NULL, hRebar, (LPPOINT)&rectReBar, 2);
+			if (::SendMessage(hTB, TB_GETMAXSIZE, NULL, (LPARAM)&size)) {
+				switch (LockTollbarTo)
+				{
+				case 1:		// Left aligment, rectReBar.left already zero
+					break;
+				case 2:
+					rectReBar.left = (rectReBar.right - rectReBar.left) / 2 - size.cx / 2;
+					break;
+				case 3:
+					rectReBar.left = (rectReBar.right - size.cx);
+					break;
+				case 4:
+					rectReBar.left += GetSettingInt(L"LockTollbarToOffset");
+					break;
+				default:
+					break;
+				}
+			}
+
+			::MoveWindow(hTB, rectReBar.left, rectReBar.top, rect.right - rect.left, rect.bottom - rect.top, FALSE);
+			// Redraw ReBar to draw bottom separator line
+			::InvalidateRect(hRebar, NULL, TRUE);
+		}
+
+		// Draw dark Toolbar background if dark mode is on
+		if (ShouldAppsUseDarkMode()) {
+			LPNMTBCUSTOMDRAW lpNMCustomDraw = (LPNMTBCUSTOMDRAW)lParam;
+			if (lpNMCustomDraw->nmcd.dwDrawStage == CDDS_PREPAINT) {
+				rect = lpNMCustomDraw->nmcd.rc;
+				FillRect(lpNMCustomDraw->nmcd.hdc, &rect, pThis->m_bkBrush);
+				rect.top = rect.bottom - 1;
+				FillRect(lpNMCustomDraw->nmcd.hdc, &rect, pThis->m_borderBrush);
+			}
+		}
+	}
+	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
 LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled )
 {
+	if (GetWinVersion() >= WIN_VER_WIN10) {
+		m_bkBrush = CreateSolidBrush(RGB(0x19, 0x19, 0x19));
+		m_borderBrush = CreateSolidBrush(RGB(0x3A, 0x3A, 0x3A));
+		m_whiteBkBrush = CreateSolidBrush(RGB(0xFF, 0xFF, 0xFF));
+		m_whiteBorderBrush = CreateSolidBrush(RGB(0xDC, 0xDC, 0xDC));
+	}
+	else {
+		{
+			CSettingsLockWrite lock;
+			FindSetting(L"LockTollbarTo")->value = 0;
+		}
+		SaveSettings();
+	}
+
 	ParseToolbar();
 
 	bool bLabels=false;
@@ -260,7 +335,9 @@ LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bH
 	m_Toolbar.SendMessage(TB_BUTTONSTRUCTSIZE,sizeof(TBBUTTON));
 	m_Toolbar.SendMessage(TB_SETMAXTEXTROWS,1);
 	SetWindowSubclass(m_Toolbar,ToolbarSubclassProc,(UINT_PTR)this,(DWORD_PTR)m_hWnd);
-
+	// Use subclassing beacause if I add same code to OnNotify callback (this return false) it blocks the right click action
+	if (GetWinVersion() >= WIN_VER_WIN10)
+		SetWindowSubclass(m_hWnd,CBandWindowSubclassProc,(UINT_PTR)this,(DWORD_PTR)m_hWnd);
 	int iconSize=GetSettingInt(GetSettingBool(L"UseBigButtons")?L"LargeIconSize":L"SmallIconSize");
 	if (iconSize<8) iconSize=8;
 	else if (iconSize>128) iconSize=128;
@@ -398,6 +475,10 @@ LRESULT CBandWindow::OnDestroy( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& b
 	}
 	m_Items.clear();
 	bHandled=FALSE;
+	if (m_bkBrush) DeleteObject(m_bkBrush);
+	if (m_borderBrush) DeleteObject(m_borderBrush);
+	if (m_whiteBkBrush) DeleteObject(m_whiteBkBrush);
+	if (m_whiteBorderBrush) DeleteObject(m_whiteBorderBrush);
 	return 0;
 }
 
@@ -2028,6 +2109,22 @@ LRESULT CALLBACK CExplorerBand::RebarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 				}
 				return res;
 			}
+		}
+	}
+
+	// We can check for LockTollbarTo since it avalibale only on Win10+, but i thing GetWinVersion() will be better for speed
+	if (GetWinVersion() >= WIN_VER_WIN10 && uMsg == WM_PAINT) {
+		bool isDarkMode = ShouldAppsUseDarkMode();
+		if (isDarkMode || GetSettingInt(L"LockTollbarTo")) {
+			CExplorerBand* pThis = (CExplorerBand*)uIdSubclass;
+			PAINTSTRUCT ps;
+			HDC hdc = BeginPaint(hWnd, &ps);
+			// We should fill Rebar on white theme too to remove annoying bottom line and draw our own later
+			FillRect(hdc, &ps.rcPaint, isDarkMode?pThis->m_BandWindow.m_bkBrush:pThis->m_BandWindow.m_whiteBkBrush);
+			ps.rcPaint.top = ps.rcPaint.bottom - 1;
+			FillRect(hdc, &ps.rcPaint, isDarkMode?pThis->m_BandWindow.m_borderBrush:pThis->m_BandWindow.m_whiteBorderBrush);
+			EndPaint(hWnd, &ps);
+			return 0;
 		}
 	}
 

@@ -740,10 +740,28 @@ static bool IsWin11Helper()
 }
 
 // Returns true if the version is Windows11 or later
-bool IsWin11(void)
+bool IsWin11( void )
 {
 	static bool bIsWin11 = IsWin11Helper();
 	return bIsWin11;
+}
+
+// UxTheme!132. Return true if dark mode for apps enabled in Windows Settings.
+bool ShouldAppsUseDarkMode( void ) {
+	static fnShouldAppsUseDarkMode pfnShouldAppsUseDarkMode = NULL;
+	if (pfnShouldAppsUseDarkMode == NULL) {
+		HMODULE hUxTheme = GetModuleHandle(L"uxtheme");
+		if (!hUxTheme)
+			hUxTheme = LoadLibrary(L"uxtheme");
+		if (hUxTheme) {
+			pfnShouldAppsUseDarkMode = (fnShouldAppsUseDarkMode)GetProcAddress(hUxTheme, MAKEINTRESOURCEA(132));
+			if (!pfnShouldAppsUseDarkMode)
+				return false;
+		}
+		else
+			return false;
+	}
+	return pfnShouldAppsUseDarkMode();
 }
 
 // Wrapper for IShellFolder::ParseDisplayName

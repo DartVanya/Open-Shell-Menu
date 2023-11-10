@@ -1282,7 +1282,7 @@ L"SwitchUserItem.Tip=$Menu.SwitchUserTip\n"
 L"SwitchUserItem.Icon=none\n"
 L"LockItem.Command=lock\n"
 L"LockItem.Label=$Menu.Lock\n"
-L"LockItem.Tip=$Menu.LockTip\n"
+L"LockItem.Tip=$Menu.LockT ip\n"
 L"LockItem.Icon=none\n"
 L"LogOffItem.Command=logoff\n"
 L"LogOffItem.Label=$Menu.LogOffShort\n"
@@ -4394,6 +4394,7 @@ CSetting g_Settings[]={
 	{L"MaxMainMenuWidth",CSetting::TYPE_INT,IDS_MENU_WIDTH,IDS_MENU_WIDTH_TIP,60,CSetting::FLAG_MENU_CLASSIC_BOTH},
 	{L"MaxMenuWidth",CSetting::TYPE_INT,IDS_SUBMENU_WIDTH,IDS_SUBMENU_WIDTH_TIP,60},
 	{L"AlignToWorkArea",CSetting::TYPE_BOOL,IDS_ALIGN_WORK_AREA,IDS_ALIGN_WORK_AREA_TIP,0},
+	{L"AlignToCenter",CSetting::TYPE_BOOL,IDS_ALIGN_CENTER,IDS_ALIGN_CENTER_TIP,0},
 	{L"HorizontalMenuOffset",CSetting::TYPE_INT,IDS_HOR_OFFSET,IDS_HOR_OFFSET_TIP,0},
 	{L"VerticalMenuOffset",CSetting::TYPE_INT,IDS_VERT_OFFSET,IDS_VERT_OFFSET_TIP,0 },
 	{L"OverrideDPI",CSetting::TYPE_INT,IDS_DPI_OVERRIDE,IDS_DPI_OVERRIDE_TIP,0,CSetting::FLAG_COLD},
@@ -5114,6 +5115,8 @@ void UpdateSettings( void )
 	if (menuStyle==MENU_CLASSIC2) flags=CSetting::FLAG_MENU_CLASSIC2;
 	if (menuStyle==MENU_WIN7) flags=CSetting::FLAG_MENU_WIN7;
 	SetSettingsStyle(flags,CSetting::FLAG_MENU_MASK);
+
+	HideSetting(L"AlignToCenter", !IsWin11());
 }
 
 class MenuCustomSettings: public ICustomSettings

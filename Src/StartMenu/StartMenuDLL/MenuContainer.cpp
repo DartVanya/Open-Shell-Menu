@@ -8558,6 +8558,20 @@ HWND CMenuContainer::ToggleStartMenu( int taskbarId, bool bKeyboard, bool bAllPr
 	g_ItemManager.UpdateNewPrograms(CPoint((s_StartRect.left+s_StartRect.right)/2,(s_StartRect.top+s_StartRect.bottom)/2));
 
 	pStartMenu->InitWindow();
+
+	if (GetSettingBool(L"AlignToCenter")) {
+		RECT menuRect; 
+		GetTaskbarPosition(s_TaskBar, NULL, NULL, &taskbarRect);
+		pStartMenu->GetWindowRect(&menuRect);
+		int JumpListHalf_W = s_Skin.ItemSettings[MenuSkin::COLUMN1_ITEM].textMetrics.tmAveCharWidth * s_JumplistWidth / 2;
+		int menuRect_left_old = menuRect.left;
+		// need to multiply left part by -1 if taskbar left was negative
+		menuRect.left = ((taskbarRect.right-taskbarRect.left)/2)*(taskbarRect.left<0?-1:1) - ((menuRect.right-JumpListHalf_W-menuRect.left)/2);
+		pStartMenu->SetWindowPos((animFlags&AW_TOPMOST)?HWND_TOPMOST:HWND_TOP,menuRect.left,menuRect.top,0,0,SWP_NOSIZE|SWP_NOACTIVATE);
+		if (pStartMenu->s_UserPicture.m_hWnd)
+			pStartMenu->s_UserPictureRect.left -= menuRect_left_old - menuRect.left;
+	}
+
 	pStartMenu->SetHotItem((bKeyboard && bAllPrograms)?0:-1);
 	bool bTreeSelected=false;
 	if (s_bWin7Style && GetSettingInt(L"ProgramsStyle")==PROGRAMS_INLINE && GetSettingBool(L"OpenPrograms"))

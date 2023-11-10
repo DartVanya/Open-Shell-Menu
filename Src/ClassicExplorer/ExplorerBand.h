@@ -97,6 +97,11 @@ public:
 	bool HasPanes( void ) const;
 	bool HasFolderSettings( void ) const;
 
+	HBRUSH m_bkBrush = NULL;
+	HBRUSH m_borderBrush = NULL;
+	HBRUSH m_whiteBkBrush = NULL;
+	HBRUSH m_whiteBorderBrush = NULL;
+
 protected:
 	// Handler prototypes:
 	//  LRESULT MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
@@ -162,6 +167,7 @@ private:
 	void UpdateFolderSettings( void );
 
 	static LRESULT CALLBACK ToolbarSubclassProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData );
+	static LRESULT CALLBACK CBandWindowSubclassProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData );
 	static HRESULT __stdcall BagWriteHook( IPropertyBag *pThis, LPCOLESTR pszPropName, VARIANT *pVar );
 };
 
