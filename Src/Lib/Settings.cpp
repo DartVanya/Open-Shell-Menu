@@ -501,7 +501,7 @@ bool CSettingsManager::GetSettingBool( const wchar_t *name ) const
 			return IsVariantTrue(pSetting->value);
 		}
 	}
-	//Assert(0);
+	Assert(0);
 	return false;
 }
 
