@@ -740,7 +740,7 @@ static bool IsWin11Helper()
 }
 
 // Returns true if the version is Windows11 or later
-bool IsWin11( void )
+bool IsWin11(void)
 {
 	static bool bIsWin11 = IsWin11Helper();
 	return bIsWin11;
