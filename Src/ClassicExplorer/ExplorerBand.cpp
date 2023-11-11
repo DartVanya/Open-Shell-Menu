@@ -248,8 +248,8 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 		CBandWindow* pThis = (CBandWindow*)uIdSubclass;
 		RECT rect;
 
-		int LockTollbarTo = GetSettingInt(L"LockTollbarTo");
-		if (LockTollbarTo) {
+		int LockToolbarTo = GetSettingInt(L"LockToolbarTo");
+		if (LockToolbarTo) {
 			//HWND hTB = ((LPNMHDR)lParam)->hwndFrom;	// in this case Toolbar can be destroed instead of menu bar
 			HWND hTB = pThis->GetToolbar();
 			HWND hRebar = pThis->GetParent();
@@ -263,7 +263,7 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 			::GetWindowRect(hRebar, &rectReBar);
 			::MapWindowPoints(NULL, hRebar, (LPPOINT)&rectReBar, 2);
 			if (::SendMessage(hTB, TB_GETMAXSIZE, NULL, (LPARAM)&size)) {
-				switch (LockTollbarTo)
+				switch (LockToolbarTo)
 				{
 				case 1:		// Left aligment, rectReBar.left already zero
 					break;
@@ -274,7 +274,7 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 					rectReBar.left = (rectReBar.right - size.cx);
 					break;
 				case 4:
-					rectReBar.left += GetSettingInt(L"LockTollbarToOffset");
+					rectReBar.left += GetSettingInt(L"LockToolbarToOffset");
 					break;
 				default:
 					break;
@@ -307,13 +307,6 @@ LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bH
 		m_borderBrush = CreateSolidBrush(RGB(0x3A, 0x3A, 0x3A));
 		m_whiteBkBrush = CreateSolidBrush(RGB(0xFF, 0xFF, 0xFF));
 		m_whiteBorderBrush = CreateSolidBrush(RGB(0xDC, 0xDC, 0xDC));
-	}
-	else {
-		{
-			CSettingsLockWrite lock;
-			FindSetting(L"LockTollbarTo")->value = 0;
-		}
-		SaveSettings();
 	}
 
 	ParseToolbar();
@@ -2112,10 +2105,10 @@ LRESULT CALLBACK CExplorerBand::RebarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 		}
 	}
 
-	// We can check for LockTollbarTo since it avalibale only on Win10+, but i thing GetWinVersion() will be better for speed
+	// We can check for LockToolbarTo since it avalibale only on Win10+, but i thing GetWinVersion() will be better for speed
 	if (GetWinVersion() >= WIN_VER_WIN10 && uMsg == WM_PAINT) {
 		bool isDarkMode = ShouldAppsUseDarkMode();
-		if (isDarkMode || GetSettingInt(L"LockTollbarTo")) {
+		if (isDarkMode || GetSettingInt(L"LockToolbarTo")) {
 			CExplorerBand* pThis = (CExplorerBand*)uIdSubclass;
 			PAINTSTRUCT ps;
 			HDC hdc = BeginPaint(hWnd, &ps);
