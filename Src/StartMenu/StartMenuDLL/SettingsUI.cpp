@@ -4395,6 +4395,7 @@ CSetting g_Settings[]={
 	{L"MaxMenuWidth",CSetting::TYPE_INT,IDS_SUBMENU_WIDTH,IDS_SUBMENU_WIDTH_TIP,60},
 	{L"AlignToWorkArea",CSetting::TYPE_BOOL,IDS_ALIGN_WORK_AREA,IDS_ALIGN_WORK_AREA_TIP,0},
 	{L"AlignToCenter",CSetting::TYPE_BOOL,IDS_ALIGN_CENTER,IDS_ALIGN_CENTER_TIP,0},
+		{L"UseTaskbarAl",CSetting::TYPE_BOOL,IDS_ALIGN_TASKBAR,IDS_ALIGN_TASKBAR_TIP,1,0,L"AlignToCenter",L"AlignToCenter"},
 	{L"HorizontalMenuOffset",CSetting::TYPE_INT,IDS_HOR_OFFSET,IDS_HOR_OFFSET_TIP,0},
 	{L"VerticalMenuOffset",CSetting::TYPE_INT,IDS_VERT_OFFSET,IDS_VERT_OFFSET_TIP,0 },
 	{L"OverrideDPI",CSetting::TYPE_INT,IDS_DPI_OVERRIDE,IDS_DPI_OVERRIDE_TIP,0,CSetting::FLAG_COLD},
@@ -5108,6 +5109,12 @@ void UpdateSettings( void )
 		UpdateSetting(L"SkinOptionsC2",CComVariant(options2),false);
 		UpdateSetting(L"SkinW7",CComVariant(skin3),false);
 		UpdateSetting(L"SkinOptionsW7",CComVariant(options3),false);
+
+		if (!IsWin11()) {
+			CSetting* pSetting = FindSetting(L"AlignToCenter");
+			pSetting->flags |= CSetting::FLAG_HIDDEN;
+			pSetting->value = 0;
+		}
 	}
 
 	int flags=0;
@@ -5115,8 +5122,6 @@ void UpdateSettings( void )
 	if (menuStyle==MENU_CLASSIC2) flags=CSetting::FLAG_MENU_CLASSIC2;
 	if (menuStyle==MENU_WIN7) flags=CSetting::FLAG_MENU_WIN7;
 	SetSettingsStyle(flags,CSetting::FLAG_MENU_MASK);
-
-	HideSetting(L"AlignToCenter", !IsWin11());
 }
 
 class MenuCustomSettings: public ICustomSettings
