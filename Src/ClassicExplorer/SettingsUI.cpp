@@ -549,13 +549,13 @@ static CSetting g_Settings[]={
 	{L"ToolbarListMode",CSetting::TYPE_BOOL,IDS_LIST_MODE,IDS_LIST_MODE_TIP,0,CSetting::FLAG_WARM},
 	{L"SameSizeButtons",CSetting::TYPE_BOOL,IDS_SAME_SIZE,IDS_SAME_SIZE_TIP,0,CSetting::FLAG_WARM,L"ToolbarListMode=0"},
 	{L"ResizeableToolbar",CSetting::TYPE_BOOL,IDS_RESIZEABLE,IDS_RESIZEABLE_TIP,0,CSetting::FLAG_WARM},
-	{L"LockTollbarTo",CSetting::TYPE_INT,IDS_LOCK_TOOLBAR,IDS_LOCK_TOOLBAR_TIP,0},
+	{L"LockToolbarTo",CSetting::TYPE_INT,IDS_LOCK_TOOLBAR,IDS_LOCK_TOOLBAR_TIP,0},
 		{L"Nothing",CSetting::TYPE_RADIO,IDS_LOCK_TO_NOTHING,IDS_LOCK_TO_NOTHING_TIP},
 		{L"Left",CSetting::TYPE_RADIO,IDS_LOCK_TO_LEFT,IDS_LOCK_TO_LEFT_TIP},
 		{L"Center",CSetting::TYPE_RADIO,IDS_LOCK_TO_CENTER,IDS_LOCK_TO_CENTER_TIP},
 		{L"Right",CSetting::TYPE_RADIO,IDS_LOCK_TO_RIGHT,IDS_LOCK_TO_RIGHT_TIP},
 		{L"CustomOffset",CSetting::TYPE_RADIO,IDS_LOCK_TO_CUSTOM,IDS_LOCK_TO_CUSTOM_TIP},
-	{L"LockTollbarToOffset",CSetting::TYPE_INT,IDS_LOCK_TO_OFFSET,IDS_LOCK_TO_OFFSET_TIP,200,0,L"LockTollbarTo=4",L"CustomOffset"},
+	{L"LockToolbarToOffset",CSetting::TYPE_INT,IDS_LOCK_TO_OFFSET,IDS_LOCK_TO_OFFSET_TIP,200,0,L"LockToolbarTo=4",L"CustomOffset"},
 
 {L"CustomToolbar",CSetting::TYPE_GROUP,IDS_BUTTONS_SETTINGS,0,0,0,NULL,NULL,&g_CustomToolbarPanel},
 	{L"ToolbarItems",CSetting::TYPE_MULTISTRING,0,0,g_DefaultToolbar,CSetting::FLAG_WARM},
@@ -659,8 +659,10 @@ void UpdateSettings( void )
 	UpdateSetting(L"Language",language,false);
 
 	if (GetWinVersion() < WIN_VER_WIN10) {
-		HideSetting(L"LockTollbarTo", true);
-		HideSetting(L"LockTollbarToOffset", true);
+		CSetting* pSetting = FindSetting(L"LockToolbarTo");
+		pSetting->flags |= CSetting::FLAG_HIDDEN;
+		pSetting->value = 0;
+		HideSetting(L"LockToolbarToOffset", true);
 	}
 }
 

@@ -5114,6 +5114,7 @@ void UpdateSettings( void )
 			CSetting* pSetting = FindSetting(L"AlignToCenter");
 			pSetting->flags |= CSetting::FLAG_HIDDEN;
 			pSetting->value = 0;
+			HideSetting(L"UseTaskbarAl", true);
 		}
 	}
 
