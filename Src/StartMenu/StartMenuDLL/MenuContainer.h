@@ -1141,3 +1141,5 @@ struct WINCOMPATTRDATA
 typedef BOOL (WINAPI *tSetWindowCompositionAttribute)( HWND hwnd, WINCOMPATTRDATA *pAttrData );
 
 void MarginsBlit( HDC hSrc, HDC hDst, const RECT &rSrc, const RECT &rDst, const RECT &rMargins, bool bAlpha );
+
+static bool GetWin11TaskbarAl( void );

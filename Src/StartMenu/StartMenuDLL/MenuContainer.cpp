@@ -8560,16 +8560,23 @@ HWND CMenuContainer::ToggleStartMenu( int taskbarId, bool bKeyboard, bool bAllPr
 	pStartMenu->InitWindow();
 
 	if (GetSettingBool(L"AlignToCenter")) {
-		RECT menuRect; 
-		GetTaskbarPosition(s_TaskBar, NULL, NULL, &taskbarRect);
-		pStartMenu->GetWindowRect(&menuRect);
-		int JumpListHalf_W = s_Skin.ItemSettings[MenuSkin::COLUMN1_ITEM].textMetrics.tmAveCharWidth * s_JumplistWidth / 2;
-		int menuRect_left_old = menuRect.left;
-		// need to multiply left part by -1 if taskbar left was negative
-		menuRect.left = ((taskbarRect.right-taskbarRect.left)/2)*(taskbarRect.left<0?-1:1) - ((menuRect.right-JumpListHalf_W-menuRect.left)/2);
-		pStartMenu->SetWindowPos((animFlags&AW_TOPMOST)?HWND_TOPMOST:HWND_TOP,menuRect.left,menuRect.top,0,0,SWP_NOSIZE|SWP_NOACTIVATE);
-		if (pStartMenu->s_UserPicture.m_hWnd)
-			pStartMenu->s_UserPictureRect.left -= menuRect_left_old - menuRect.left;
+		// if taskbar is left alignment and UseTaskbarAl not set, show menu centered anyway
+		if (!GetSettingBool(L"UseTaskbarAl") || GetWin11TaskbarAl()) {
+			RECT menuRect;
+			GetTaskbarPosition(s_TaskBar, NULL, NULL, &taskbarRect);
+			pStartMenu->GetWindowRect(&menuRect);
+			int JumpListHalf_W = s_Skin.ItemSettings[MenuSkin::COLUMN1_ITEM].textMetrics.tmAveCharWidth * s_JumplistWidth / 2;
+			int menuRect_left_old = menuRect.left;
+			// need to multiply left part by -1 if taskbar left was negative
+			menuRect.left = ((taskbarRect.right-taskbarRect.left)/2)*(taskbarRect.left<0?-1:1) - ((menuRect.right-JumpListHalf_W-menuRect.left)/2)
+							+ GetSettingInt(L"HorizontalMenuOffset");
+			pStartMenu->SetWindowPos((animFlags&AW_TOPMOST)?HWND_TOPMOST:HWND_TOP,menuRect.left,menuRect.top+GetSettingInt(L"VerticalMenuOffset"),0,0,SWP_NOSIZE|SWP_NOACTIVATE);
+			// Fix UserPicture window position if it exist
+			if (pStartMenu->s_UserPicture.m_hWnd) {
+				pStartMenu->s_UserPictureRect.left -= menuRect_left_old - menuRect.left;
+				pStartMenu->s_UserPictureRect.top += GetSettingInt(L"VerticalMenuOffset");
+			}
+		}
 	}
 
 	pStartMenu->SetHotItem((bKeyboard && bAllPrograms)?0:-1);
@@ -9269,4 +9276,16 @@ void CMenuContainer::OpenSearchList( void )
 {
 	s_PreSearchMenuMode=s_MenuMode==MODE_PROGRAMS?MODE_PROGRAMS:MODE_NORMAL;
 	SetMenuMode(MODE_SEARCH);
+}
+
+
+static bool GetWin11TaskbarAl( void )
+{
+	CRegKey regKey;
+	if (regKey.Open(HKEY_CURRENT_USER, LR"(Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced)", KEY_READ) == ERROR_SUCCESS)
+	{
+		DWORD val;
+		return regKey.QueryDWORDValue(L"TaskbarAl", val) == ERROR_SUCCESS && val;
+	}
+	return false;
 }
