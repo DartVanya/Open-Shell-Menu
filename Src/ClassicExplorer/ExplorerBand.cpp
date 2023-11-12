@@ -246,7 +246,7 @@ LRESULT CALLBACK CBandWindow::ToolbarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
 	if (uMsg == WM_NOTIFY) {
 		CBandWindow* pThis = (CBandWindow*)uIdSubclass;
-		RECT rect;
+		RECT rect, rectReBar;
 
 		int LockToolbarTo = GetSettingInt(L"LockToolbarTo");
 		if (LockToolbarTo) {
@@ -257,7 +257,6 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 			if (hMenuTB = FindWindowEx(hRebar, NULL, TOOLBARCLASSNAME, NULL))
 				if (hMenuTB != hTB)
 					::DestroyWindow(hMenuTB);	// destroy menu bar so it does not overlap a toolbar
-			RECT rectReBar;
 			SIZE size;
 			::GetWindowRect(hTB, &rect);
 			::GetWindowRect(hRebar, &rectReBar);
@@ -281,19 +280,23 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 				}
 			}
 
-			::MoveWindow(hTB, rectReBar.left, rectReBar.top, rect.right - rect.left, rect.bottom - rect.top, FALSE);
 			// Redraw ReBar to draw bottom separator line
-			::InvalidateRect(hRebar, NULL, TRUE);
+			::RedrawWindow(hRebar, NULL, NULL, RDW_INVALIDATE);
+			::MoveWindow(hTB, rectReBar.left, rectReBar.top, rect.right - rect.left, rect.bottom - rect.top, FALSE);
 		}
 
 		// Draw dark Toolbar background if dark mode is on
 		if (ShouldAppsUseDarkMode()) {
 			LPNMTBCUSTOMDRAW lpNMCustomDraw = (LPNMTBCUSTOMDRAW)lParam;
 			if (lpNMCustomDraw->nmcd.dwDrawStage == CDDS_PREPAINT) {
+				::GetWindowRect(pThis->GetParent(), &rectReBar);
 				rect = lpNMCustomDraw->nmcd.rc;
 				FillRect(lpNMCustomDraw->nmcd.hdc, &rect, pThis->m_bkBrush);
-				rect.top = rect.bottom - 1;
-				FillRect(lpNMCustomDraw->nmcd.hdc, &rect, pThis->m_borderBrush);
+				// Draw bottom line only if toolbar is locked
+				if (rect.top - rect.bottom == rectReBar.top - rectReBar.bottom) {
+					rect.top = rect.bottom - 1;
+					FillRect(lpNMCustomDraw->nmcd.hdc, &rect, pThis->m_borderBrush);
+				}
 			}
 		}
 	}
