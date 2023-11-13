@@ -2109,7 +2109,10 @@ LRESULT CALLBACK CExplorerBand::RebarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 	}
 
 	// We can check for LockToolbarTo since it avalibale only on Win10+, but i thing GetWinVersion() will be better for speed
-	if (GetWinVersion() >= WIN_VER_WIN10 && uMsg == WM_PAINT) {
+	if ((uMsg == WM_PAINT || uMsg == WM_ERASEBKGND) && GetWinVersion() >= WIN_VER_WIN10) {
+		// Reduce flickering. We draw background ourselves 
+		if (uMsg == WM_ERASEBKGND)
+			return 0;
 		bool isDarkMode = ShouldAppsUseDarkMode();
 		if (isDarkMode || GetSettingInt(L"LockToolbarTo")) {
 			CExplorerBand* pThis = (CExplorerBand*)uIdSubclass;
