@@ -286,16 +286,19 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 		}
 
 		// Draw dark Toolbar background if dark mode is on
-		if (ShouldAppsUseDarkMode()) {
-			LPNMTBCUSTOMDRAW lpNMCustomDraw = (LPNMTBCUSTOMDRAW)lParam;
-			if (lpNMCustomDraw->nmcd.dwDrawStage == CDDS_PREPAINT) {
-				::GetWindowRect(pThis->GetParent(), &rectReBar);
+
+		LPNMTBCUSTOMDRAW lpNMCustomDraw = (LPNMTBCUSTOMDRAW)lParam;
+		if (lpNMCustomDraw->nmcd.dwDrawStage == CDDS_PREPAINT) {
+			bool isDarkMode = ShouldAppsUseDarkMode();
+			if (isDarkMode || GetSettingInt(L"LockToolbarTo")) {
 				rect = lpNMCustomDraw->nmcd.rc;
-				FillRect(lpNMCustomDraw->nmcd.hdc, &rect, pThis->m_bkBrush);
+				::GetWindowRect(pThis->GetParent(), &rectReBar);
+				
+				FillRect(lpNMCustomDraw->nmcd.hdc, &rect, isDarkMode?pThis->m_bkBrush:pThis->m_whiteBkBrush);
 				// Draw bottom line only if toolbar is locked
 				if (rect.top - rect.bottom == rectReBar.top - rectReBar.bottom) {
 					rect.top = rect.bottom - 1;
-					FillRect(lpNMCustomDraw->nmcd.hdc, &rect, pThis->m_borderBrush);
+					FillRect(lpNMCustomDraw->nmcd.hdc, &rect, isDarkMode?pThis->m_borderBrush:pThis->m_whiteBorderBrush);
 				}
 			}
 		}
@@ -2111,10 +2114,10 @@ LRESULT CALLBACK CExplorerBand::RebarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 	// We can check for LockToolbarTo since it avalibale only on Win10+, but i thing GetWinVersion() will be better for speed
 	if ((uMsg == WM_PAINT || uMsg == WM_ERASEBKGND) && GetWinVersion() >= WIN_VER_WIN10) {
 		// Reduce flickering. We draw background ourselves 
-		if (uMsg == WM_ERASEBKGND)
-			return 0;
 		bool isDarkMode = ShouldAppsUseDarkMode();
 		if (isDarkMode || GetSettingInt(L"LockToolbarTo")) {
+			if (uMsg == WM_ERASEBKGND)
+				return 0;
 			CExplorerBand* pThis = (CExplorerBand*)uIdSubclass;
 			PAINTSTRUCT ps;
 			HDC hdc = BeginPaint(hWnd, &ps);
