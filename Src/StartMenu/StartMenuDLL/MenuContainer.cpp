@@ -8565,11 +8565,9 @@ HWND CMenuContainer::ToggleStartMenu( int taskbarId, bool bKeyboard, bool bAllPr
 			RECT menuRect;
 			GetTaskbarPosition(s_TaskBar, NULL, NULL, &taskbarRect);
 			pStartMenu->GetWindowRect(&menuRect);
-			int JumpListHalf_W = s_Skin.ItemSettings[MenuSkin::COLUMN1_ITEM].textMetrics.tmAveCharWidth * s_JumplistWidth / 2;
 			int menuRect_left_old = menuRect.left;
 			// need to multiply left part by -1 if taskbar left was negative
-			menuRect.left = ((taskbarRect.right-taskbarRect.left)/2)*(taskbarRect.left<0?-1:1) - ((menuRect.right-JumpListHalf_W-menuRect.left)/2)
-							+ GetSettingInt(L"HorizontalMenuOffset");
+			menuRect.left = (taskbarRect.right-taskbarRect.left)/2*(taskbarRect.left<0?-1:1) - (int)ceil((double)s_MenuWidthNormal/2) + GetSettingInt(L"HorizontalMenuOffset");
 			pStartMenu->SetWindowPos((animFlags&AW_TOPMOST)?HWND_TOPMOST:HWND_TOP,menuRect.left,menuRect.top+GetSettingInt(L"VerticalMenuOffset"),0,0,SWP_NOSIZE|SWP_NOACTIVATE);
 			// Fix UserPicture window position if it exist
 			if (pStartMenu->s_UserPicture.m_hWnd) {
