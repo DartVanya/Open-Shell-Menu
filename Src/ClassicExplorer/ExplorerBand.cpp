@@ -231,7 +231,8 @@ LRESULT CALLBACK CBandWindow::ToolbarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 			::PostMessage((HWND)dwRefData,CBandWindow::BWM_UPDATETOOLBAR,0,0);
 
 		if (GetWinVersion() >= WIN_VER_WIN10)
-			::InvalidateRect(::GetParent((HWND)dwRefData), NULL, TRUE);
+			::RedrawWindow(::GetParent((HWND)dwRefData), NULL, NULL, RDW_INVALIDATE | RDW_FRAME); // use RDW_FRAME to redraw bottom separator line in WM_NCPAINT
+			//::InvalidateRect(::GetParent((HWND)dwRefData), NULL, TRUE);
 	}
 	if (uMsg==WM_PAINT)
 	{
