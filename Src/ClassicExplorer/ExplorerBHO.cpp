@@ -594,6 +594,10 @@ LRESULT CALLBACK CExplorerBHO::SubclassStatusProc8( HWND hWnd, UINT uMsg, WPARAM
 		}
 	}
 
+	// Radraw StatusNar when changing theme
+	if (uMsg == WM_SETTINGCHANGE && GetWinVersion() >= WIN_VER_WIN10)
+		::RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME);
+
 	if (uMsg == WM_NCPAINT && GetWinVersion() >= WIN_VER_WIN10 && ShouldAppsUseDarkMode()) {
 		HDC hdc = GetWindowDC(hWnd);
 		RECT rcClip;
