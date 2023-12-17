@@ -244,63 +244,87 @@ LRESULT CALLBACK CBandWindow::ToolbarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 
 // This subclass proc only installs in Win10+
 LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
-	if (uMsg == WM_NOTIFY) {
+	if (uMsg == WM_NOTIFY && ((LPNMHDR)lParam)->code == NM_CUSTOMDRAW) {
+		LPNMTBCUSTOMDRAW lpNMCustomDraw = (LPNMTBCUSTOMDRAW)lParam;
 		CBandWindow* pThis = (CBandWindow*)uIdSubclass;
-		RECT rect, rectReBar;
+		DWORD dwDrawStage = lpNMCustomDraw->nmcd.dwDrawStage;
+		bool isDarkMode = ShouldAppsUseDarkMode();
 
-		int LockToolbarTo = GetSettingInt(L"LockToolbarTo");
-		if (LockToolbarTo) {
-			//HWND hTB = ((LPNMHDR)lParam)->hwndFrom;	// in this case Toolbar can be destroed instead of menu bar
-			HWND hTB = pThis->GetToolbar();
-			HWND hRebar = pThis->GetParent();
-			HWND hMenuTB = NULL;
-			if (hMenuTB = FindWindowEx(hRebar, NULL, TOOLBARCLASSNAME, NULL))
-				if (hMenuTB != hTB)
-					::DestroyWindow(hMenuTB);	// destroy menu bar so it does not overlap a toolbar
-			SIZE size;
-			::GetWindowRect(hTB, &rect);
-			::GetWindowRect(hRebar, &rectReBar);
-			::MapWindowPoints(NULL, hRebar, (LPPOINT)&rectReBar, 2);
-			if (::SendMessage(hTB, TB_GETMAXSIZE, NULL, (LPARAM)&size)) {
-				switch (LockToolbarTo)
-				{
-				case 1:		// Left aligment, rectReBar.left already zero
-					break;
-				case 2:
-					rectReBar.left = (rectReBar.right - rectReBar.left) / 2 - size.cx / 2;
-					break;
-				case 3:
-					rectReBar.left = (rectReBar.right - size.cx);
-					break;
-				case 4:
-					rectReBar.left += GetSettingInt(L"LockToolbarToOffset");
-					break;
-				default:
-					break;
-				}
+		if (isDarkMode && dwDrawStage & CDDS_ITEM) {
+			if (dwDrawStage == CDDS_ITEMPREPAINT) {
+				TBBUTTONINFO tbbi = { sizeof(TBBUTTONINFO), TBIF_STYLE };
+				::SendMessage(pThis->GetToolbar(), TB_GETBUTTONINFO, (WPARAM)lpNMCustomDraw->nmcd.dwItemSpec, (LPARAM)&tbbi);
+				bool isDropDown = tbbi.fsStyle & BTNS_DROPDOWN;
+				lpNMCustomDraw->clrText = RGB(0xFF, 0xFF, 0xFF);
+				if (!isDropDown)
+					lpNMCustomDraw->clrHighlightHotTrack = RGB(0x27, 0x27, 0x27);
+				return CDRF_DODEFAULT | TBCDRF_USECDCOLORS | (isDropDown ? CDRF_NOTIFYPOSTPAINT : TBCDRF_HILITEHOTTRACK);
 			}
-
-			// Redraw ReBar to draw bottom separator line
-			::RedrawWindow(hRebar, NULL, NULL, RDW_INVALIDATE);
-			::MoveWindow(hTB, rectReBar.left, rectReBar.top, rect.right - rect.left, rect.bottom - rect.top, FALSE);
+			if (dwDrawStage == CDDS_ITEMPOSTPAINT) {
+				HDC hdc = lpNMCustomDraw->nmcd.hdc;
+				RECT& rc = lpNMCustomDraw->nmcd.rc;
+				int triangleLeft = rc.right - 9, triangleTop = (rc.bottom - rc.top) / 2 + 2;
+				POINT vertices[] = { {triangleLeft, triangleTop}, {triangleLeft + 6, triangleTop}, {triangleLeft + 3, triangleTop + 3} };
+				SetDCPenColor(hdc, RGB(0xDE, 0xDE, 0xDE));
+				SetDCBrushColor(hdc, RGB(0xDE, 0xDE, 0xDE));
+				SelectObject(hdc, GetStockObject(DC_PEN));
+				SelectObject(hdc, GetStockObject(DC_BRUSH));
+				Polygon(hdc, vertices, _countof(vertices));
+				return CDRF_DODEFAULT;
+			}
 		}
 
-		// Draw dark Toolbar background if dark mode is on
+		if (dwDrawStage == CDDS_PREPAINT) {
+			RECT rect, rectReBar;
+			int LockToolbarTo = GetSettingInt(L"LockToolbarTo");
+			if (LockToolbarTo) {
+				//HWND hTB = ((LPNMHDR)lParam)->hwndFrom;	// in this case Toolbar can be destroed instead of menu bar
+				HWND hTB = pThis->GetToolbar();
+				HWND hRebar = pThis->GetParent();
+				HWND hMenuTB = NULL;
+				if (hMenuTB = FindWindowEx(hRebar, NULL, TOOLBARCLASSNAME, NULL))
+					if (hMenuTB != hTB)
+						::DestroyWindow(hMenuTB);	// destroy menu bar so it does not overlap a toolbar
+				SIZE size;
+				::GetWindowRect(hTB, &rect);
+				::GetWindowRect(hRebar, &rectReBar);
+				::MapWindowPoints(NULL, hRebar, (LPPOINT)&rectReBar, 2);
+				if (::SendMessage(hTB, TB_GETMAXSIZE, NULL, (LPARAM)&size)) {
+					switch (LockToolbarTo)
+					{
+					case 1:		// Left aligment, rectReBar.left already zero
+						break;
+					case 2:
+						rectReBar.left = (rectReBar.right - rectReBar.left) / 2 - size.cx / 2;
+						break;
+					case 3:
+						rectReBar.left = (rectReBar.right - size.cx);
+						break;
+					case 4:
+						rectReBar.left += GetSettingInt(L"LockToolbarToOffset");
+						break;
+					default:
+						break;
+					}
+				}
 
-		LPNMTBCUSTOMDRAW lpNMCustomDraw = (LPNMTBCUSTOMDRAW)lParam;
-		if (lpNMCustomDraw->nmcd.dwDrawStage == CDDS_PREPAINT) {
-			bool isDarkMode = ShouldAppsUseDarkMode();
-			if (isDarkMode || GetSettingInt(L"LockToolbarTo")) {
+				// Redraw ReBar to draw bottom separator line
+				::RedrawWindow(hRebar, NULL, NULL, RDW_INVALIDATE);
+				::SetWindowPos(hTB, NULL, rectReBar.left, rectReBar.top, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOREDRAW);
+			}
+
+			// Draw custom Toolbar background
+			if (isDarkMode || LockToolbarTo) {
 				rect = lpNMCustomDraw->nmcd.rc;
 				::GetWindowRect(pThis->GetParent(), &rectReBar);
-				
-				FillRect(lpNMCustomDraw->nmcd.hdc, &rect, isDarkMode?pThis->m_bkBrush:pThis->m_whiteBkBrush);
+				FillRect(lpNMCustomDraw->nmcd.hdc, &rect, isDarkMode ? pThis->m_bkBrush : pThis->m_whiteBkBrush);
 				// Draw bottom line only if toolbar is locked
 				if (rect.top - rect.bottom == rectReBar.top - rectReBar.bottom) {
 					rect.top = rect.bottom - 1;
-					FillRect(lpNMCustomDraw->nmcd.hdc, &rect, isDarkMode?pThis->m_borderBrush:pThis->m_whiteBorderBrush);
+					FillRect(lpNMCustomDraw->nmcd.hdc, &rect, isDarkMode ? pThis->m_borderBrush : pThis->m_whiteBorderBrush);
 				}
 			}
+			return CDRF_DODEFAULT | CDRF_NOTIFYITEMDRAW;
 		}
 	}
 	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -2111,25 +2135,40 @@ LRESULT CALLBACK CExplorerBand::RebarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 		}
 	}
 
-	// We can check for LockToolbarTo since it avalibale only on Win10+, but i thing GetWinVersion() will be better for speed
-	if ((uMsg == WM_PAINT || uMsg == WM_ERASEBKGND) && GetWinVersion() >= WIN_VER_WIN10) {
-		// Reduce flickering. We draw background ourselves 
+	// Draw custom background for ReBar if theme is Dark or LockToolbarTo is set
+	if ((uMsg == WM_PAINT || uMsg == WM_NCPAINT || uMsg == WM_ERASEBKGND) && GetWinVersion() >= WIN_VER_WIN10) {
 		bool isDarkMode = ShouldAppsUseDarkMode();
 		if (isDarkMode || GetSettingInt(L"LockToolbarTo")) {
-			if (uMsg == WM_ERASEBKGND)
-				return 0;
+			if (uMsg == WM_PAINT) {
+				// To redraw Rebar when "Lock the toolbars" changed
+				InvalidateRect(hWnd, NULL, TRUE);
+				return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+			}
+
 			CExplorerBand* pThis = (CExplorerBand*)uIdSubclass;
-			PAINTSTRUCT ps;
-			HDC hdc = BeginPaint(hWnd, &ps);
-			// We should fill Rebar on white theme too to remove annoying bottom line and draw our own later
-			FillRect(hdc, &ps.rcPaint, isDarkMode?pThis->m_BandWindow.m_bkBrush:pThis->m_BandWindow.m_whiteBkBrush);
-			ps.rcPaint.top = ps.rcPaint.bottom - 1;
-			FillRect(hdc, &ps.rcPaint, isDarkMode?pThis->m_BandWindow.m_borderBrush:pThis->m_BandWindow.m_whiteBorderBrush);
-			EndPaint(hWnd, &ps);
-			return 0;
+			HDC hdc;
+			RECT rc, rcTB;
+			GetClientRect(hWnd, &rc);
+			GetClientRect((HWND)dwRefData, &rcTB);
+
+			if (uMsg == WM_ERASEBKGND) {
+				hdc = (HDC)wParam;
+				GetClipBox(hdc, &rc);
+				if (rc.bottom == rcTB.bottom)
+					--rc.bottom;
+				FillRect(hdc, &rc, isDarkMode ? pThis->m_BandWindow.m_bkBrush : pThis->m_BandWindow.m_whiteBkBrush);
+				return true;
+			}
+			// Draw bottom line only if toolbar is locked
+			if (uMsg == WM_NCPAINT && rc.top - rc.bottom == rcTB.top - rcTB.bottom) {
+				hdc = GetWindowDC(hWnd);
+				rc.top = rc.bottom - 1;
+				FillRect(hdc, &rc, isDarkMode ? pThis->m_BandWindow.m_borderBrush : pThis->m_BandWindow.m_whiteBorderBrush);
+				ReleaseDC(hWnd, hdc);
+				return 0;
+			}
 		}
 	}
-
 	return DefSubclassProc(hWnd,uMsg,wParam,lParam);
 }
 

@@ -593,6 +593,89 @@ LRESULT CALLBACK CExplorerBHO::SubclassStatusProc8( HWND hWnd, UINT uMsg, WPARAM
 			return 0;
 		}
 	}
+
+	if (uMsg == WM_NCPAINT && GetWinVersion() >= WIN_VER_WIN10 && ShouldAppsUseDarkMode()) {
+		HDC hdc = GetWindowDC(hWnd);
+		RECT rcClip;
+		GetClipBox(hdc, &rcClip);
+		rcClip.bottom = rcClip.top + 1;
+		SetDCBrushColor(hdc, RGB(0x3A, 0x3A, 0x3A));
+		FillRect(hdc, &rcClip, (HBRUSH)GetStockObject(DC_BRUSH));
+		ReleaseDC(hWnd, hdc);
+		return 0;
+	}
+	if (uMsg == WM_ERASEBKGND && GetWinVersion() >= WIN_VER_WIN10 && ShouldAppsUseDarkMode()) {
+		HDC hdc = (HDC)wParam;
+		RECT rcClip;
+		GetClipBox(hdc, &rcClip);
+		if (rcClip.top == 0)
+			++rcClip.top;
+		SetDCBrushColor(hdc, RGB(0x1C, 0x1C, 0x1C));
+		FillRect(hdc, &rcClip, (HBRUSH)GetStockObject(DC_BRUSH));
+		return true;
+	}
+	if (uMsg == WM_PAINT && GetWinVersion() >= WIN_VER_WIN10 && ShouldAppsUseDarkMode()) {
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+		RECT rc, rcSep, rcClient, rcInter;
+		SIZE size;
+		WCHAR textPart[1024];
+		HBRUSH brBorder = (HBRUSH)GetStockObject(DC_BRUSH);
+		HICON hIcon;
+		GetTextExtentPoint32(hdc, L"T", 1, &size);
+		int cxIcon = GetSystemMetrics(SM_CXSMICON);
+
+		GetClientRect(hWnd, &rcClient);
+		SelectObject(hdc, (HGDIOBJ)DefSubclassProc(hWnd, WM_GETFONT, NULL, NULL));
+		SetDCBrushColor(hdc, RGB(0x5E, 0x5E, 0x5E));
+		SetBkMode(hdc, TRANSPARENT);
+		SetTextColor(hdc, RGB(0xFF, 0xFF, 0xFF));
+
+		int parts = (int)DefSubclassProc(hWnd, SB_GETPARTS, NULL, NULL);
+		for (int i = 0; i < parts; ++i) {
+			DefSubclassProc(hWnd, SB_GETRECT, i, (LPARAM)&rc);
+			if (IntersectRect(&rcInter, &rc, &ps.rcPaint)) {
+				rcSep = rc;
+				LRESULT lr = DefSubclassProc(hWnd, SB_GETTEXTLENGTH, i, NULL);
+				int szText = LOWORD(lr), flags = HIWORD(lr);
+
+				if (hIcon = (HICON)DefSubclassProc(hWnd, SB_GETICON, i, NULL)) {
+					DrawIconEx(hdc, rc.left + 2, rc.top + ((rc.bottom - rc.top) / 2 - cxIcon / 2), hIcon, 0, 0, 0, 0, DI_NORMAL);
+					rc.left += cxIcon + 4;
+				}
+
+				if (szText != 0 && szText < 1024) {
+					rc.left += 2, rc.top += (rc.bottom - rc.top) / 2 - size.cy / 2;
+					DefSubclassProc(hWnd, SB_GETTEXT, i, (LPARAM)textPart);
+					DrawText(hdc, textPart, -1, &rc, DT_SINGLELINE);
+				}
+
+				// Draw separators
+				if (parts != 1 && !(flags & SBT_NOBORDERS) && rcSep.right < rcClient.right - 16) {
+					--rcSep.bottom, rcSep.left = rcSep.right - 1;
+					FillRect(hdc, &rcSep, brBorder);
+				}
+			}
+		}
+
+		// Draw resize corner
+		SetDCBrushColor(hdc, RGB(0xBF, 0xBF, 0xBF));
+		rcClient.bottom -= 2, rcClient.right -= 8, rcClient.top = rcClient.bottom - 2, rcClient.left = rcClient.right - 2;
+		FillRect(hdc, &rcClient, brBorder);
+		for (int i = 0; i < 2; ++i) {
+			OffsetRect(&rcClient, 3, 0);
+			FillRect(hdc, &rcClient, brBorder);
+		}
+		for (int i = 0; i < 2; ++i) {
+			OffsetRect(&rcClient, 0, -3);
+			FillRect(hdc, &rcClient, brBorder);
+		}
+		OffsetRect(&rcClient, -3, 3);
+		FillRect(hdc, &rcClient, brBorder);
+
+		EndPaint(hWnd, &ps);
+		return 0;
+	}
 	return DefSubclassProc(hWnd,uMsg,wParam,lParam);
 }
 
