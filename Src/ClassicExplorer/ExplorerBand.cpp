@@ -251,9 +251,9 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 		DWORD dwDrawStage = lpNMCustomDraw->nmcd.dwDrawStage;
 		bool isDarkMode = ShouldAppsUseDarkMode();
 
-		if (isDarkMode && dwDrawStage & CDDS_ITEM) {
+		if (isDarkMode) {
 			if (dwDrawStage == CDDS_ITEMPREPAINT) {
-				TBBUTTONINFO tbbi = { sizeof(TBBUTTONINFO), TBIF_STYLE|TBIF_STATE };
+				TBBUTTONINFO tbbi = { sizeof(TBBUTTONINFO), TBIF_STYLE|TBIF_STATE|TBIF_IMAGE };
 				::SendMessage(pThis->GetToolbar(), TB_GETBUTTONINFO, (WPARAM)lpNMCustomDraw->nmcd.dwItemSpec, (LPARAM)&tbbi);
 				bool isDropDown = tbbi.fsStyle & BTNS_DROPDOWN;
 				bool isChecked = tbbi.fsState & TBSTATE_CHECKED;
@@ -268,6 +268,23 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 					}
 					else
 						flags |= CDRF_NOTIFYPOSTPAINT;
+				}
+				else if (!isDropDown && !(tbbi.fsStyle & BTNS_SHOWTEXT) && tbbi.iImage != I_IMAGENONE) {
+					HIMAGELIST imgList = (HIMAGELIST)::SendMessage(((LPNMHDR)lParam)->hwndFrom, TB_GETIMAGELIST, NULL, NULL);
+					if (imgList) {
+						RECT rc = lpNMCustomDraw->nmcd.rc;
+						++rc.right;
+						HDC hdc = lpNMCustomDraw->nmcd.hdc;
+						HBRUSH brush = (HBRUSH)GetStockObject(DC_BRUSH);
+						SetDCBrushColor(hdc, RGB(0x4D, 0x4D, 0x4D));
+						HRGN rgnBk = CreateRoundRectRgn(rc.left, rc.top, rc.right, rc.bottom, 4, 4);
+						FillRgn(hdc, rgnBk, brush);
+						SetDCBrushColor(hdc, RGB(0x63, 0x63, 0x63));
+						FrameRgn(hdc, rgnBk, brush, 1, 1);
+						ImageList_Draw(imgList, tbbi.iImage, hdc, lpNMCustomDraw->nmcd.rc.left + 5, lpNMCustomDraw->nmcd.rc.top + 4, ILD_NORMAL);
+						DeleteObject(rgnBk);
+						return CDRF_SKIPDEFAULT;
+					}
 				}
 				return CDRF_DODEFAULT | flags;
 			}
@@ -319,9 +336,9 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 					}
 				}
 
+				::SetWindowPos(hTB, NULL, rectReBar.left, rectReBar.top, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOREDRAW);
 				// Redraw ReBar to draw bottom separator line
 				::RedrawWindow(hRebar, NULL, NULL, RDW_INVALIDATE);
-				::SetWindowPos(hTB, NULL, rectReBar.left, rectReBar.top, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOREDRAW);
 			}
 
 			// Draw custom Toolbar background
