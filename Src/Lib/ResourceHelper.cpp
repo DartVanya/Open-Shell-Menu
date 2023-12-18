@@ -749,6 +749,8 @@ bool IsWin11(void)
 // UxTheme!132. Return true if dark mode for apps enabled in Windows Settings.
 bool ShouldAppsUseDarkMode( void ) {
 	static fnShouldAppsUseDarkMode pfnShouldAppsUseDarkMode = NULL;
+	if (GetWinVersion() < WIN_VER_WIN10)
+		return false;
 	if (pfnShouldAppsUseDarkMode == NULL) {
 		HMODULE hUxTheme = GetModuleHandle(L"uxtheme");
 		if (!hUxTheme)
@@ -762,6 +764,13 @@ bool ShouldAppsUseDarkMode( void ) {
 			return false;
 	}
 	return pfnShouldAppsUseDarkMode();
+}
+
+bool IsColorSchemeChangeMessage( LPARAM lParam ) {
+	if (GetWinVersion() >= WIN_VER_WIN10 && lParam &&
+		CompareStringOrdinal(LPWSTR(lParam), -1, L"ImmersiveColorSet", -1, TRUE) == CSTR_EQUAL)
+		return true;
+	return false;
 }
 
 // Wrapper for IShellFolder::ParseDisplayName

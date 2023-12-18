@@ -594,11 +594,11 @@ LRESULT CALLBACK CExplorerBHO::SubclassStatusProc8( HWND hWnd, UINT uMsg, WPARAM
 		}
 	}
 
-	// Radraw StatusNar when changing theme
-	if (uMsg == WM_SETTINGCHANGE && GetWinVersion() >= WIN_VER_WIN10)
+	// Radraw StatusBar when changing theme
+	if (uMsg == WM_SETTINGCHANGE && IsColorSchemeChangeMessage(lParam))
 		::RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME);
 
-	if (uMsg == WM_NCPAINT && GetWinVersion() >= WIN_VER_WIN10 && ShouldAppsUseDarkMode()) {
+	if (uMsg == WM_NCPAINT && ShouldAppsUseDarkMode()) {
 		HDC hdc = GetWindowDC(hWnd);
 		RECT rcClip;
 		GetClipBox(hdc, &rcClip);
@@ -608,7 +608,7 @@ LRESULT CALLBACK CExplorerBHO::SubclassStatusProc8( HWND hWnd, UINT uMsg, WPARAM
 		ReleaseDC(hWnd, hdc);
 		return 0;
 	}
-	if (uMsg == WM_ERASEBKGND && GetWinVersion() >= WIN_VER_WIN10 && ShouldAppsUseDarkMode()) {
+	if (uMsg == WM_ERASEBKGND && ShouldAppsUseDarkMode()) {
 		HDC hdc = (HDC)wParam;
 		RECT rcClip;
 		GetClipBox(hdc, &rcClip);
@@ -618,7 +618,7 @@ LRESULT CALLBACK CExplorerBHO::SubclassStatusProc8( HWND hWnd, UINT uMsg, WPARAM
 		FillRect(hdc, &rcClip, (HBRUSH)GetStockObject(DC_BRUSH));
 		return true;
 	}
-	if (uMsg == WM_PAINT && GetWinVersion() >= WIN_VER_WIN10 && ShouldAppsUseDarkMode()) {
+	if (uMsg == WM_PAINT && ShouldAppsUseDarkMode()) {
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hWnd, &ps);
 		RECT rc, rcSep, rcClient, rcInter;
