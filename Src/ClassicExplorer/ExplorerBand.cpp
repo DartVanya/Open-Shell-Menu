@@ -253,13 +253,23 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 
 		if (isDarkMode && dwDrawStage & CDDS_ITEM) {
 			if (dwDrawStage == CDDS_ITEMPREPAINT) {
-				TBBUTTONINFO tbbi = { sizeof(TBBUTTONINFO), TBIF_STYLE };
+				TBBUTTONINFO tbbi = { sizeof(TBBUTTONINFO), TBIF_STYLE|TBIF_STATE };
 				::SendMessage(pThis->GetToolbar(), TB_GETBUTTONINFO, (WPARAM)lpNMCustomDraw->nmcd.dwItemSpec, (LPARAM)&tbbi);
 				bool isDropDown = tbbi.fsStyle & BTNS_DROPDOWN;
-				lpNMCustomDraw->clrText = RGB(0xFF, 0xFF, 0xFF);
-				if (!isDropDown)
-					lpNMCustomDraw->clrHighlightHotTrack = RGB(0x27, 0x27, 0x27);
-				return CDRF_DODEFAULT | TBCDRF_USECDCOLORS | (isDropDown ? CDRF_NOTIFYPOSTPAINT : TBCDRF_HILITEHOTTRACK);
+				bool isChecked = tbbi.fsState & TBSTATE_CHECKED;
+				UINT flags = 0;
+
+				if (!isChecked) {
+					lpNMCustomDraw->clrText = RGB(0xFF, 0xFF, 0xFF);
+					flags = TBCDRF_USECDCOLORS;
+					if (!isDropDown) {
+						lpNMCustomDraw->clrHighlightHotTrack = RGB(0x47, 0x47, 0x47);
+						flags |= TBCDRF_HILITEHOTTRACK;
+					}
+					else
+						flags |= CDRF_NOTIFYPOSTPAINT;
+				}
+				return CDRF_DODEFAULT | flags;
 			}
 			if (dwDrawStage == CDDS_ITEMPOSTPAINT) {
 				HDC hdc = lpNMCustomDraw->nmcd.hdc;
