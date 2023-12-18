@@ -19,6 +19,7 @@
 #include <shdeprecated.h>
 #include <propkey.h>
 #include <algorithm>
+#include <uxtheme.h>
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -233,6 +234,12 @@ LRESULT CALLBACK CBandWindow::ToolbarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 		if (GetWinVersion() >= WIN_VER_WIN10)
 			::RedrawWindow(::GetParent((HWND)dwRefData), NULL, NULL, RDW_INVALIDATE | RDW_FRAME); // use RDW_FRAME to redraw bottom separator line in WM_NCPAINT
 			//::InvalidateRect(::GetParent((HWND)dwRefData), NULL, TRUE);
+		// Change ToolTip theme when changing theme
+		if (IsColorSchemeChangeMessage(lParam)) {
+			HWND hTips = (HWND)::SendMessage(pThis->GetToolbar(), TB_GETTOOLTIPS, NULL, NULL);
+			if (hTips)
+				SetWindowTheme(hTips, ShouldAppsUseDarkMode() ? L"DarkMode_Explorer" : NULL, NULL);
+		}
 	}
 	if (uMsg==WM_PAINT)
 	{
@@ -387,8 +394,14 @@ LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bH
 	m_Toolbar.SendMessage(TB_SETMAXTEXTROWS,1);
 	SetWindowSubclass(m_Toolbar,ToolbarSubclassProc,(UINT_PTR)this,(DWORD_PTR)m_hWnd);
 	// Use subclassing beacause if I add same code to OnNotify callback (this return false) it blocks the right click action
-	if (GetWinVersion() >= WIN_VER_WIN10)
-		SetWindowSubclass(m_hWnd,CBandWindowSubclassProc,(UINT_PTR)this,(DWORD_PTR)m_hWnd);
+	if (GetWinVersion() >= WIN_VER_WIN10) {
+		SetWindowSubclass(m_hWnd, CBandWindowSubclassProc, (UINT_PTR)this, (DWORD_PTR)m_hWnd);
+		if (ShouldAppsUseDarkMode()) {
+			HWND hTips = (HWND)::SendMessage(m_Toolbar, TB_GETTOOLTIPS, NULL, NULL);
+			if (hTips)
+				SetWindowTheme(hTips, L"DarkMode_Explorer", NULL);
+		}
+	}
 	int iconSize=GetSettingInt(GetSettingBool(L"UseBigButtons")?L"LargeIconSize":L"SmallIconSize");
 	if (iconSize<8) iconSize=8;
 	else if (iconSize>128) iconSize=128;

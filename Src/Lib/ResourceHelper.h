@@ -73,6 +73,7 @@ bool IsWin11();
 // UxTheme!132. Return true if dark mode for apps enabled in Windows Settings.
 typedef bool (WINAPI* fnShouldAppsUseDarkMode)( void );
 bool ShouldAppsUseDarkMode( void );
+bool IsColorSchemeChangeMessage( LPARAM );
 
 // Wrapper for IShellFolder::ParseDisplayName
 HRESULT ShParseDisplayName( const wchar_t *pszName, PIDLIST_ABSOLUTE *ppidl, SFGAOF sfgaoIn, SFGAOF *psfgaoOut );
