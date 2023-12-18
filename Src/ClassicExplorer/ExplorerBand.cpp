@@ -393,7 +393,7 @@ LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bH
 	m_Toolbar.SendMessage(TB_BUTTONSTRUCTSIZE,sizeof(TBBUTTON));
 	m_Toolbar.SendMessage(TB_SETMAXTEXTROWS,1);
 	SetWindowSubclass(m_Toolbar,ToolbarSubclassProc,(UINT_PTR)this,(DWORD_PTR)m_hWnd);
-	// Use subclassing beacause if I add same code to OnNotify callback (this return false) it blocks the right click action
+	// Use subclassing beacause if I add same code to OnNotify callback (with return false) it blocks the right click action
 	if (GetWinVersion() >= WIN_VER_WIN10) {
 		SetWindowSubclass(m_hWnd, CBandWindowSubclassProc, (UINT_PTR)this, (DWORD_PTR)m_hWnd);
 		if (ShouldAppsUseDarkMode()) {
