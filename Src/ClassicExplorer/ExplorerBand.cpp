@@ -303,7 +303,7 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 
 						// Custom draw our "pressed" button depending on Toolbar style
 						if (!GetSettingBool(L"ToolbarListMode")) {
-							int iconY = nmcd_rc.top + ((nmcd_rc.bottom - nmcd_rc.top) / 2 - (iconSize + (label ? textSize.cy : 0)) / 2) - (label != NULL);
+							int iconY = nmcd_rc.top + ((nmcd_rc.bottom - nmcd_rc.top) / 2 - (iconSize + (label ? textSize.cy : 0)) / 2) + 1 - (label ? 2 : 0);
 							ImageList_Draw(imgList, tbbi.iImage, hdc, nmcd_rc.left + ((nmcd_rc.right - nmcd_rc.left) / 2 - iconSize / 2) + 1, iconY, ILD_NORMAL);
 							if (label) {
 								// Reminder - lpNMCustomDraw->nmcd.rc is read only, need to copy value to work with
