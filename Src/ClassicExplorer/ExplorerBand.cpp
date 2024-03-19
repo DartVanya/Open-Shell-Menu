@@ -301,22 +301,23 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 							GetTextExtentPoint32(hdc, L"T", 1, &textSize);
 						}
 
-						// Reminder - lpNMCustomDraw->nmcd.rc is read only, need to copy value to work with
-						rc = nmcd_rc;
 						// Custom draw our "pressed" button depending on Toolbar style
 						if (!GetSettingBool(L"ToolbarListMode")) {
-							int iconY = nmcd_rc.top + ((nmcd_rc.bottom - nmcd_rc.top) / 2 - (iconSize + (label ? textSize.cy : 0)) / 2) - 1;
+							int iconY = nmcd_rc.top + ((nmcd_rc.bottom - nmcd_rc.top) / 2 - (iconSize + (label ? textSize.cy : 0)) / 2) - (label != NULL);
 							ImageList_Draw(imgList, tbbi.iImage, hdc, nmcd_rc.left + ((nmcd_rc.right - nmcd_rc.left) / 2 - iconSize / 2) + 1, iconY, ILD_NORMAL);
 							if (label) {
+								// Reminder - lpNMCustomDraw->nmcd.rc is read only, need to copy value to work with
+								rc = nmcd_rc;
 								++rc.left;
 								rc.top = iconY + iconSize + 1;
 								DrawText(hdc, label, -1, &rc, DT_SINGLELINE | DT_TOP | DT_CENTER);
 							}
 						}
 						else {
-							int iconX = nmcd_rc.left + 4;
+							int iconX = nmcd_rc.left + (label ? 4 : 5);
 							ImageList_Draw(imgList, tbbi.iImage, hdc, iconX, nmcd_rc.top + ((nmcd_rc.bottom - nmcd_rc.top) / 2 - iconSize / 2) + 1, ILD_NORMAL);
 							if (label) {
+								rc = nmcd_rc;
 								rc.left = iconX + iconSize + 4;
 								rc.top += (rc.bottom - rc.top) / 2 - textSize.cy / 2;
 								DrawText(hdc, label, -1, &rc, DT_SINGLELINE | DT_TOP | DT_LEFT);
