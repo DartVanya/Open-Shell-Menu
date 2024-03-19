@@ -276,10 +276,14 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 					else
 						flags |= CDRF_NOTIFYPOSTPAINT;
 				}
-				else if (!isDropDown && !(tbbi.fsStyle & BTNS_SHOWTEXT) && tbbi.iImage != I_IMAGENONE) {
+				else if (!isDropDown && tbbi.iImage != I_IMAGENONE) {
 					HIMAGELIST imgList = (HIMAGELIST)::SendMessage(((LPNMHDR)lParam)->hwndFrom, TB_GETIMAGELIST, NULL, NULL);
 					if (imgList) {
-						RECT rc = lpNMCustomDraw->nmcd.rc;
+						auto& label = pThis->m_Items[lpNMCustomDraw->nmcd.lItemlParam].label;
+						int iconSize = GetSettingInt(GetSettingBool(L"UseBigButtons") ? L"LargeIconSize" : L"SmallIconSize");
+						SIZE textSize;
+						RECT& nmcd_rc = lpNMCustomDraw->nmcd.rc;
+						RECT rc = nmcd_rc;
 						++rc.right;
 						HDC hdc = lpNMCustomDraw->nmcd.hdc;
 						HBRUSH brush = (HBRUSH)GetStockObject(DC_BRUSH);
@@ -288,7 +292,36 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 						FillRgn(hdc, rgnBk, brush);
 						SetDCBrushColor(hdc, RGB(0x63, 0x63, 0x63));
 						FrameRgn(hdc, rgnBk, brush, 1, 1);
-						ImageList_Draw(imgList, tbbi.iImage, hdc, lpNMCustomDraw->nmcd.rc.left + 5, lpNMCustomDraw->nmcd.rc.top + 4, ILD_NORMAL);
+
+						// Apply text font first to precalculate its size by GetTextExtentPoint32
+						if (label) {
+							SetBkMode(hdc, TRANSPARENT);
+							SetTextColor(hdc, RGB(0xFF, 0xFF, 0xFF));
+							SelectObject(hdc, (HGDIOBJ)::SendMessage(((LPNMHDR)lParam)->hwndFrom, WM_GETFONT, NULL, NULL));
+							GetTextExtentPoint32(hdc, L"T", 1, &textSize);
+						}
+
+						// Reminder - lpNMCustomDraw->nmcd.rc is read only, need to copy value to work with
+						rc = nmcd_rc;
+						// Custom draw our "pressed" button depending on Toolbar style
+						if (!GetSettingBool(L"ToolbarListMode")) {
+							int iconY = nmcd_rc.top + ((nmcd_rc.bottom - nmcd_rc.top) / 2 - (iconSize + (label ? textSize.cy : 0)) / 2) - 1;
+							ImageList_Draw(imgList, tbbi.iImage, hdc, nmcd_rc.left + ((nmcd_rc.right - nmcd_rc.left) / 2 - iconSize / 2) + 1, iconY, ILD_NORMAL);
+							if (label) {
+								++rc.left;
+								rc.top = iconY + iconSize + 1;
+								DrawText(hdc, label, -1, &rc, DT_SINGLELINE | DT_TOP | DT_CENTER);
+							}
+						}
+						else {
+							int iconX = nmcd_rc.left + 4;
+							ImageList_Draw(imgList, tbbi.iImage, hdc, iconX, nmcd_rc.top + ((nmcd_rc.bottom - nmcd_rc.top) / 2 - iconSize / 2) + 1, ILD_NORMAL);
+							if (label) {
+								rc.left = iconX + iconSize + 4;
+								rc.top += (rc.bottom - rc.top) / 2 - textSize.cy / 2;
+								DrawText(hdc, label, -1, &rc, DT_SINGLELINE | DT_TOP | DT_LEFT);
+							}
+						}
 						DeleteObject(rgnBk);
 						return CDRF_SKIPDEFAULT;
 					}
@@ -393,7 +426,7 @@ LRESULT CBandWindow::OnCreate( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bH
 	m_Toolbar.SendMessage(TB_BUTTONSTRUCTSIZE,sizeof(TBBUTTON));
 	m_Toolbar.SendMessage(TB_SETMAXTEXTROWS,1);
 	SetWindowSubclass(m_Toolbar,ToolbarSubclassProc,(UINT_PTR)this,(DWORD_PTR)m_hWnd);
-	// Use subclassing beacause if I add same code to OnNotify callback (with return false) it blocks the right click action
+	// Use subclassing because if I add same code to OnNotify callback (with return false) it blocks the right click action
 	if (GetWinVersion() >= WIN_VER_WIN10) {
 		SetWindowSubclass(m_hWnd, CBandWindowSubclassProc, (UINT_PTR)this, (DWORD_PTR)m_hWnd);
 		if (ShouldAppsUseDarkMode()) {
