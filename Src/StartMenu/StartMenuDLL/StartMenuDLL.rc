@@ -653,7 +653,7 @@ BEGIN
     IDS_ALIGN_WORK_AREA     "Align start menu to working area"
     IDS_ALIGN_WORK_AREA_TIP "Align the start menu to the working area instead of to the taskbar. Use with custom taskbars"
 	IDS_ALIGN_CENTER		"Align start menu to screen center"
-	IDS_ALIGN_CENTER_TIP	"Align the start menu to center width of screen. This setting is usefull on Windows 11 with center taskbar alignment"
+	IDS_ALIGN_CENTER_TIP	"Align the start menu to center width of screen. This setting is useful on Windows 11 with center taskbar alignment"
 	IDS_ALIGN_TASKBAR		"Follow system taskbar alignment"
 	IDS_ALIGN_TASKBAR_TIP	"Start menu will only be centered if system taskbar uses center alignment"
     IDS_HOR_OFFSET          "Horizontal position offset"
@@ -1295,6 +1295,12 @@ BEGIN
     IDS_TASK_STRETCHH_TIP   "Choose how to stretch the texture horizontally"
     IDS_TASK_STRETCHV       "Vertical stretching"
     IDS_TASK_STRETCHV_TIP   "Choose how to stretch the texture vertically"
+	IDS_PEEKDESKTOPW11		"Peek Desktop (Windows 11)"
+	IDS_PEEKDESKTOPW11_TIP	"Brings back the classic peek desktop feature when hovering mouse over the right edge of system tray."
+	IDS_PDW11_TASKBARSD		"Follow system taskbar behavior"
+	IDS_PDW11_TASKBARSD_TIP	"Peek desktop feature will only work if ""Select the far corner of the taskbar to show desktop"" option set in Settings - Personalization - Taskbar - Taskbar behavior."
+	IDS_PDW11_DELAY			"Hover delay"
+	IDS_PDW11_DELAY_TIP		"Enter delay (in ms) for hovering over tray edge to peek desktop (minimum 100ms)"
 END
 
 STRINGTABLE 
