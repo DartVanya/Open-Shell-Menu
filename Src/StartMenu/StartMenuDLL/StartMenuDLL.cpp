@@ -3593,7 +3593,7 @@ static LRESULT CALLBACK HookDesktopThreadMouse(int code, WPARAM wParam, LPARAM l
 							// Delay here is not so precise because system send mouse messages in fixed delay
 							// I haven't been able to get this to work consistently through timer, therefore lets rely on fact
 							// that system continue sending WM_MOUSEMOVE even if cursor is not moving and just hovered over taskbar window
-							if (GetTickCount() - PDW11_HoverStart >= (delay < 100 ? 100 : delay)) {	// 100ms is minimum stable delay in my tests
+							if (GetTickCount() - PDW11_HoverStart >= DWORD(delay < 100 ? 100 : delay)) {	// 100ms is minimum stable delay in my tests
 								INPUT inputs[3] = {};
 
 								inputs[0].type = INPUT_KEYBOARD;
