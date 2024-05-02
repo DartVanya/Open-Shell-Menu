@@ -3518,38 +3518,24 @@ static LRESULT CALLBACK HookProgManThread( int code, WPARAM wParam, LPARAM lPara
 }
 
 static BOOL PDW11_WinDown = FALSE;
+static UINT_PTR PDW11_timer = NULL;
 static HHOOK PDW11_hk = NULL;
 
-LPRECT PDW11_GetPeekBox(LPRECT rcTray) {
+LPRECT PDW11_GetPeekBox(LPRECT rcTray)
+{
 	GetWindowRect(g_TrayWnd, rcTray);
 	rcTray->left = rcTray->right - ScaleForDpi(g_TrayWnd, 12);
 	rcTray->right += 1, rcTray->bottom += 1;
 	return rcTray;
 }
 
-UINT PDW11_RWinUp( void ) {
+UINT PDW11_RWinUp( void )
+{
 	INPUT input = {};
 	input.type = INPUT_KEYBOARD;
 	input.ki.wVk = VK_RWIN;
 	input.ki.dwFlags = KEYEVENTF_KEYUP;
 	return SendInput(1, &input, sizeof(INPUT));
-}
-
-static LRESULT CALLBACK PeekDeskW11MouseProcLL(int nCode, WPARAM wParam, LPARAM lParam)
-{
-	if (PDW11_WinDown && nCode == HC_ACTION && wParam == WM_MOUSEMOVE) {
-		auto info = (LPMSLLHOOKSTRUCT)lParam;
-		RECT rcBox;
-		if (!PtInRect(PDW11_GetPeekBox(&rcBox), info->pt)) {
-			PDW11_RWinUp();
-			PDW11_WinDown = FALSE;
-
-			if (PDW11_hk) {
-				UnhookWindowsHookEx(PDW11_hk); PDW11_hk = NULL;
-			}
-		}
-	}
-	return CallNextHookEx(0, nCode, wParam, lParam);
 }
 
 static bool GetWin11TaskbarSD(void)
@@ -3563,11 +3549,65 @@ static bool GetWin11TaskbarSD(void)
 	return true;
 }
 
+static LRESULT CALLBACK PeekDeskW11MouseProcLL(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	if (PDW11_WinDown) {
+		if (nCode == HC_ACTION && wParam == WM_MOUSEMOVE) {
+			auto info = (LPMSLLHOOKSTRUCT)lParam;
+			RECT rcBox;
+			if (!PtInRect(PDW11_GetPeekBox(&rcBox), info->pt)) {
+				PDW11_RWinUp();
+				PDW11_WinDown = FALSE;
+
+				if (PDW11_hk) {
+					UnhookWindowsHookEx(PDW11_hk); PDW11_hk = NULL;
+				}
+			}
+		}
+		else if (PDW11_hk) {
+			UnhookWindowsHookEx(PDW11_hk); PDW11_hk = NULL;
+		}
+	}
+	return CallNextHookEx(0, nCode, wParam, lParam);
+}
+
+VOID CALLBACK PDW11_TryPeekAsync(HWND hWnd, UINT uMessage, UINT_PTR uEventId, DWORD dwTime)
+{
+	KillTimer(NULL, PDW11_timer);
+	PDW11_timer = NULL;
+
+	RECT rcBox;
+	POINT pt;
+	GetCursorPos(&pt);
+	if (PtInRect(PDW11_GetPeekBox(&rcBox), pt)) {
+		INPUT inputs[3] = {};
+
+		inputs[0].type = INPUT_KEYBOARD;
+		inputs[0].ki.wVk = VK_RWIN;
+
+		inputs[1].type = INPUT_KEYBOARD;
+		inputs[1].ki.wVk = VK_OEM_COMMA;
+
+		inputs[2].type = INPUT_KEYBOARD;
+		inputs[2].ki.wVk = VK_OEM_COMMA;
+		inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
+
+		if (SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT))) {
+			PDW11_WinDown = TRUE;
+
+			if (!PDW11_hk)
+				PDW11_hk = SetWindowsHookEx(WH_MOUSE_LL, PeekDeskW11MouseProcLL, g_Instance, NULL);
+			// Release Win key immediately if mouse hook can not be installed for some reasons
+			if (!PDW11_hk) {
+				PDW11_RWinUp(); PDW11_WinDown = FALSE;
+			}
+		}
+	}
+}
+
 // WH_MOUSE hook for taskbar thread (Win11+)
 static LRESULT CALLBACK HookDesktopThreadMouse(int code, WPARAM wParam, LPARAM lParam)
 {
-	static DWORD PDW11_HoverStart = 0;
-
 	if (code == HC_ACTION)
 	{
 		// we need to steal mouse messages that are issues in start button area
@@ -3580,47 +3620,16 @@ static LRESULT CALLBACK HookDesktopThreadMouse(int code, WPARAM wParam, LPARAM l
 				taskBar = FindTaskBarInfoBar(GetAncestor(info->hwnd, GA_ROOT)); // click on taskbar
 
 				// Peek Desktop for Windows 11 feature
-				if (GetSettingBool(L"PeekDesktopW11") && !PDW11_WinDown && taskBar && g_TrayWnd && wParam == WM_MOUSEMOVE) {
+				if (!PDW11_timer && GetSettingBool(L"PeekDesktopW11") && taskBar && g_TrayWnd && wParam == WM_MOUSEMOVE) {
 					RECT rcBox;
 					if (PtInRect(PDW11_GetPeekBox(&rcBox), info->pt)) {
-
 						// Optimization: check for registry only if mouse in PeekBox
 						// if system taskbar peek button is off and PDW11_TaskbarSD not set, peek desktop anyway
 						if (!GetSettingBool(L"PDW11_TaskbarSD") || GetWin11TaskbarSD()) {
-							if (!PDW11_HoverStart)
-								PDW11_HoverStart = GetTickCount();
 							int delay = GetSettingInt(L"PDW11_DelayTime");
-							// Delay here is not so precise because system send mouse messages in fixed delay
-							// I haven't been able to get this to work consistently through timer, therefore lets rely on fact
-							// that system continue sending WM_MOUSEMOVE even if cursor is not moving and just hovered over taskbar window
-							if (GetTickCount() - PDW11_HoverStart >= DWORD(delay < 100 ? 100 : delay)) {	// 100ms is minimum stable delay in my tests
-								INPUT inputs[3] = {};
-
-								inputs[0].type = INPUT_KEYBOARD;
-								inputs[0].ki.wVk = VK_RWIN;
-
-								inputs[1].type = INPUT_KEYBOARD;
-								inputs[1].ki.wVk = VK_OEM_COMMA;
-
-								inputs[2].type = INPUT_KEYBOARD;
-								inputs[2].ki.wVk = VK_OEM_COMMA;
-								inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
-
-								UINT uSent = SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
-
-								PDW11_WinDown = TRUE;
-								PDW11_HoverStart = 0;
-								if (!PDW11_hk)
-									PDW11_hk = SetWindowsHookEx(WH_MOUSE_LL, PeekDeskW11MouseProcLL, g_Instance, NULL);
-								// Release Win key immediately if mouse hook can not be installed for some reasons
-								if (!PDW11_hk) {
-									PDW11_RWinUp(); PDW11_WinDown = FALSE;
-								}
-							}
+							PDW11_timer = SetTimer(NULL, NULL, delay < 100 ? 100 : delay, PDW11_TryPeekAsync);	// 100ms is minimum stable delay in my tests
 						}
 					}
-					else
-						PDW11_HoverStart = 0;
 				}
 
 				if (taskBar && !PointAroundStartButton(taskBar->taskbarId))
