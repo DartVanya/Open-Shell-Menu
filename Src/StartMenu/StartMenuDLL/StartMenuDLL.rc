@@ -1296,7 +1296,7 @@ BEGIN
     IDS_TASK_STRETCHV       "Vertical stretching"
     IDS_TASK_STRETCHV_TIP   "Choose how to stretch the texture vertically"
 	IDS_PEEKDESKTOPW11		"Peek Desktop (Windows 11)"
-	IDS_PEEKDESKTOPW11_TIP	"Brings back the classic peek desktop feature when hovering mouse over the right edge of system tray."
+	IDS_PEEKDESKTOPW11_TIP	"Brings back the classic peek desktop feature when hovering mouse over the right edge of system tray. Only works then UAC is disabled"
 	IDS_PDW11_TASKBARSD		"Follow system taskbar behavior"
 	IDS_PDW11_TASKBARSD_TIP	"Peek desktop feature will only work if ""Select the far corner of the taskbar to show desktop"" option set in Settings - Personalization - Taskbar - Taskbar behavior."
 	IDS_PDW11_DELAY			"Hover delay"
