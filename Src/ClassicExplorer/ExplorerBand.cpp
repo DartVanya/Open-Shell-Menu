@@ -232,7 +232,7 @@ LRESULT CALLBACK CBandWindow::ToolbarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 			::PostMessage((HWND)dwRefData,CBandWindow::BWM_UPDATETOOLBAR,0,0);
 
 		if (GetWinVersion() >= WIN_VER_WIN10)
-			::RedrawWindow(::GetParent((HWND)dwRefData), NULL, NULL, RDW_INVALIDATE | RDW_FRAME); // use RDW_FRAME to redraw bottom separator line in WM_NCPAINT
+			::RedrawWindow(::GetParent((HWND)dwRefData), NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME); // use RDW_FRAME to redraw bottom separator line in WM_NCPAINT
 			//::InvalidateRect(::GetParent((HWND)dwRefData), NULL, TRUE);
 		// Change ToolTip theme when changing theme
 		if (IsColorSchemeChangeMessage(lParam)) {
@@ -2216,7 +2216,8 @@ LRESULT CALLBACK CExplorerBand::RebarSubclassProc( HWND hWnd, UINT uMsg, WPARAM 
 		if (isDarkMode || GetSettingInt(L"LockToolbarTo")) {
 			if (uMsg == WM_PAINT) {
 				// To redraw Rebar when "Lock the toolbars" changed
-				InvalidateRect(hWnd, NULL, TRUE);
+				::RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME);
+				//InvalidateRect(hWnd, NULL, TRUE);
 				return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 			}
 
