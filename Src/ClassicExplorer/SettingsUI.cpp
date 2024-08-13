@@ -628,7 +628,7 @@ void UpdateSettings( void )
 
 		UpdateSetting(L"ShowCaption",CComVariant(0),false); HideSetting(L"ShowCaption",true);
 		UpdateSetting(L"ShowIcon",CComVariant(0),false); HideSetting(L"ShowIcon",true);
-		UpdateSetting(L"FixFolderScroll",CComVariant(0),false); HideSetting(L"FixFolderScroll",true);
+		UpdateSetting(L"FixFolderScroll",CComVariant(0),false);
 		UpdateSetting(L"ToolbarItems",CComVariant(g_DefaultToolbar2),false);
 
 		if (GetWinVersion()>=WIN_VER_WIN10)
