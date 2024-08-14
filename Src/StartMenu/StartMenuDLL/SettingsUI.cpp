@@ -5112,26 +5112,27 @@ void UpdateSettings( void )
 		UpdateSetting(L"SkinOptionsC2",CComVariant(options2),false);
 		UpdateSetting(L"SkinW7",CComVariant(skin3),false);
 		UpdateSetting(L"SkinOptionsW7",CComVariant(options3),false);
-
+		
+		CSetting* pSetting;
+		TOKEN_ELEVATION elevated = { FALSE };
+		DWORD ReturnLength;
+		if (!IsWin11()) {
+			HideSetting(L"UseTaskbarAl", true);
+			pSetting = FindSetting(L"AlignToCenter");
+			pSetting->flags |= CSetting::FLAG_HIDDEN;
+			pSetting->value = 0;
+		}
+		else {
 		// Mouse hook events are not getting triggered when foreground window is running as admin.
 		// Unfortunately, peek desktop window is from some admin process (not explorer).
 		// So, if we install hook and peek desktop it will never come back until physical press of Win button or Ctrl+Alt+Delete.
 		// Therefore, disable Peek Desktop option if UAC is turned on.
-		HANDLE hTokSelf;
-		TOKEN_ELEVATION elevated = { FALSE };
-		DWORD ReturnLength;
-		if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hTokSelf)) {
-			GetTokenInformation(hTokSelf, TokenElevation, &elevated, sizeof(elevated), &ReturnLength);
-			CloseHandle(hTokSelf);
+#define NtCurrentProcessToken() ((HANDLE)(LONG_PTR)-4) // NtOpenProcessToken(NtCurrentProcess())
+			GetTokenInformation(NtCurrentProcessToken(), TokenElevation, &elevated, sizeof(elevated), &ReturnLength);
 		}
 		if (!IsWin11() || !elevated.TokenIsElevated) {
-			CSetting* pSetting = FindSetting(L"AlignToCenter");
-			pSetting->flags |= CSetting::FLAG_HIDDEN | (elevated.TokenIsElevated ? CSetting::FLAG_NOSAVE : 0); // restore setting when UAC is turned off
-			pSetting->value = 0;
-			HideSetting(L"UseTaskbarAl", true);
-
 			pSetting = FindSetting(L"PeekDesktopW11");
-			pSetting->flags |= CSetting::FLAG_HIDDEN;
+			pSetting->flags |= CSetting::FLAG_HIDDEN | (elevated.TokenIsElevated ? CSetting::FLAG_NOSAVE : 0);	// restore setting when UAC is turned off
 			pSetting->value = 0;
 			HideSetting(L"PDW11_TaskbarSD", true);
 			HideSetting(L"PDW11_DelayTime", true);
