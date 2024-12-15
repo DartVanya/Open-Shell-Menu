@@ -2889,6 +2889,169 @@ static void OpenCortana( void )
 		ShellExecute(NULL,NULL,L"shell:::{2559a1f8-21d7-11d4-bdaf-00c04f60b9f0}",NULL,NULL,SW_SHOWNORMAL);
 }
 
+static BOOL PDW11_WinDown = FALSE;
+static UINT_PTR PDW11_timer = NULL;
+static HHOOK PDW11_hk = NULL;
+
+LPRECT PDW11_GetPeekBox(LPRECT rcTray)
+{
+	GetWindowRect(g_TrayWnd, rcTray);
+	rcTray->left = rcTray->right - ScaleForDpi(g_TrayWnd, 12);
+	rcTray->right += 1, rcTray->bottom += 1;
+	return rcTray;
+}
+
+UINT PDW11_RWinUp(void)
+{
+	INPUT input = {};
+	input.type = INPUT_KEYBOARD;
+	input.ki.wVk = VK_RWIN;
+	input.ki.dwFlags = KEYEVENTF_KEYUP;
+	return SendInput(1, &input, sizeof(INPUT));
+}
+
+static bool GetWin11TaskbarSD(void)
+{
+	CRegKey regKey;
+	if (regKey.Open(HKEY_CURRENT_USER, LR"(Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced)", KEY_READ) == ERROR_SUCCESS)
+	{
+		DWORD val;
+		return regKey.QueryDWORDValue(L"TaskbarSD", val) == ERROR_SUCCESS ? val : true;	// peek button enabled by default
+	}
+	return true;
+}
+
+static LRESULT CALLBACK PeekDeskW11MouseProcLL(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	if (PDW11_WinDown) {
+		if (nCode == HC_ACTION && wParam == WM_MOUSEMOVE) {
+			auto info = (LPMSLLHOOKSTRUCT)lParam;
+			RECT rcBox;
+			if (!PtInRect(PDW11_GetPeekBox(&rcBox), info->pt)) {
+				PDW11_RWinUp();
+				PDW11_WinDown = FALSE;
+
+				if (PDW11_hk) {
+					UnhookWindowsHookEx(PDW11_hk); PDW11_hk = NULL;
+				}
+			}
+		}
+		else if (PDW11_hk) {
+			UnhookWindowsHookEx(PDW11_hk); PDW11_hk = NULL;
+		}
+	}
+	return CallNextHookEx(0, nCode, wParam, lParam);
+}
+
+VOID CALLBACK PDW11_TryPeekAsync(HWND hWnd, UINT uMessage, UINT_PTR uEventId, DWORD dwTime)
+{
+	KillTimer(NULL, PDW11_timer);
+	PDW11_timer = NULL;
+
+	//RECT rcBox;
+	//POINT pt;
+	//GetCursorPos(&pt);
+	//if (PtInRect(PDW11_GetPeekBox(&rcBox), pt))
+	{
+		INPUT inputs[3] = {};
+
+		inputs[0].type = INPUT_KEYBOARD;
+		inputs[0].ki.wVk = VK_RWIN;
+
+		inputs[1].type = INPUT_KEYBOARD;
+		inputs[1].ki.wVk = VK_OEM_COMMA;
+
+		inputs[2].type = INPUT_KEYBOARD;
+		inputs[2].ki.wVk = VK_OEM_COMMA;
+		inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
+
+		if (SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT))) {
+			PDW11_WinDown = TRUE;
+
+			//if (!PDW11_hk)
+				//PDW11_hk = SetWindowsHookEx(WH_MOUSE_LL, PeekDeskW11MouseProcLL, g_Instance, NULL);
+			// Release Win key immediately if mouse hook can not be installed for some reasons
+			//if (!PDW11_hk) {
+			//	PDW11_RWinUp(); PDW11_WinDown = FALSE;
+			//}
+		}
+	}
+}
+
+// Peek Desktop for Windows 11 feature
+static LRESULT CALLBACK HookDesktopThreadMessage(int code, WPARAM wParam, LPARAM lParam)
+{
+	PMSG msg = (PMSG)lParam;
+
+	if (wParam == PM_REMOVE /*&& msg->hwnd == g_TrayWnd*/)
+	{
+		switch (msg->message)
+		{
+		case WM_MOUSEMOVE:
+			if (GetSettingBool(L"PeekDesktopW11"))
+			{
+				RECT rcBox;
+				//POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+				POINT pt;
+				GetCursorPos(&pt);
+				if (PtInRect(PDW11_GetPeekBox(&rcBox), pt)) {
+
+					// Optimization: check for registry only if mouse in PeekBox
+					// if system taskbar peek button is off and PDW11_TaskbarSD not set, peek desktop anyway
+					if (!PDW11_WinDown && (!GetSettingBool(L"PDW11_TaskbarSD") || GetWin11TaskbarSD())) {
+
+						TRACKMOUSEEVENT trackMouseEvent;
+
+						trackMouseEvent.cbSize = sizeof(TRACKMOUSEEVENT);
+						trackMouseEvent.dwFlags = TME_LEAVE;
+						trackMouseEvent.hwndTrack = g_TrayWnd;
+						trackMouseEvent.dwHoverTime = 0;
+
+						//SetCapture(g_TrayWnd);
+
+						//TrackMouseEvent(&trackMouseEvent);
+
+						//int delay = GetSettingInt(L"PDW11_DelayTime");
+						//PDW11_timer = SetTimer(NULL, NULL, delay < 100 ? 100 : delay, PDW11_TryPeekAsync);	// 100ms is minimum stable delay in my tests
+
+						
+
+						PostMessage(g_TaskBar, WM_HOTKEY, 0x204, MAKELPARAM(MOD_WIN, VK_OEM_COMMA));
+
+						PDW11_WinDown = TRUE;
+						
+					}
+				}
+				else if (PDW11_WinDown) {
+					PDW11_RWinUp();
+					PDW11_WinDown = FALSE;
+				}
+			}
+			break;
+		case WM_MOUSELEAVE:
+			if (msg->hwnd == g_TrayWnd && PDW11_WinDown)
+			{
+				PDW11_RWinUp();
+				PDW11_WinDown = FALSE;
+			}
+			break;
+		case WM_NCHITTEST:
+			if (PDW11_WinDown) {
+				RECT rcBox;
+				POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+				if (!PtInRect(PDW11_GetPeekBox(&rcBox), pt)) {
+					PDW11_RWinUp();
+					PDW11_WinDown = FALSE;
+				}
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	return CallNextHookEx(NULL, code, wParam, lParam);
+}
+
 static void InitStartMenuDLL( void )
 {
 	static bool initCalled = false;
@@ -2987,6 +3150,9 @@ static void InitStartMenuDLL( void )
 	if (IsWin11())
 	{
 		g_StartMouseHook=SetWindowsHookEx(WH_MOUSE,HookDesktopThreadMouse,NULL,GetCurrentThreadId());
+		if (g_TrayWnd)
+			g_StartMouseHook = SetWindowsHookEx(WH_GETMESSAGE, HookDesktopThreadMessage, NULL, GetCurrentThreadId());
+			//SetWindowSubclass(g_TrayWnd, SubclassTrayWndProc, (UINT_PTR)g_TrayWnd, NULL);
 
 		// hook ShellRegisterHotKey to prevent twinui.dll to install shell hotkeys (Win, Ctrl+Esc)
 		// without these hotkeys there is standard WM_SYSCOMMAND+SC_TASKLIST sent when start menu is invoked by keyboard shortcut
@@ -3517,6 +3683,11 @@ static LRESULT CALLBACK HookDesktopThreadMouse(int code, WPARAM wParam, LPARAM l
 {
 	if (code == HC_ACTION)
 	{
+		if (wParam == WM_NCHITTEST)
+		{
+			auto taskBar = 1;
+		}
+
 		// we need to steal mouse messages that are issues in start button area
 		// so that they won't get to XAML framework that is handling original start button
 		auto info = (const MOUSEHOOKSTRUCT*)lParam;
@@ -3525,6 +3696,7 @@ static LRESULT CALLBACK HookDesktopThreadMouse(int code, WPARAM wParam, LPARAM l
 			if (!taskBar)
 			{
 				taskBar = FindTaskBarInfoBar(GetAncestor(info->hwnd, GA_ROOT)); // click on taskbar
+
 				if (taskBar && !PointAroundStartButton(taskBar->taskbarId))
 					taskBar = NULL;
 			}
