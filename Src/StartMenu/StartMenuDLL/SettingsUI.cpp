@@ -4484,7 +4484,7 @@ CSetting g_Settings[]={
 		{L"TaskbarBordersV",CSetting::TYPE_STRING,IDS_TASK_BORDERS,IDS_TASK_BORDERS_TIP,L"0,0",CSetting::FLAG_CALLBACK,L"#TaskbarTileV=1",L"TaskbarTileV"},
 	{L"PeekDesktopW11",CSetting::TYPE_BOOL,IDS_PEEKDESKTOPW11,IDS_PEEKDESKTOPW11_TIP,0},
 		{L"PDW11_TaskbarSD",CSetting::TYPE_BOOL,IDS_PDW11_TASKBARSD,IDS_PDW11_TASKBARSD_TIP,1,0,L"PeekDesktopW11",L"PeekDesktopW11"},
-		{L"PDW11_DelayTime",CSetting::TYPE_INT,IDS_PDW11_DELAY,IDS_PDW11_DELAY_TIP,450,0,L"PeekDesktopW11",L"PeekDesktopW11"},
+		{L"PDW11_DelayTime",CSetting::TYPE_INT,IDS_PDW11_DELAY,IDS_PDW11_DELAY_TIP,0,0,L"PeekDesktopW11",L"PeekDesktopW11"},
 
 {L"Metro",CSetting::TYPE_GROUP,IDS_METRO_SETTINGS},
 	{L"SkipMetro",CSetting::TYPE_BOOL,IDS_SKIP_METRO,IDS_SKIP_METRO_TIP,1,CSetting::FLAG_BASIC},
@@ -5115,7 +5115,7 @@ void UpdateSettings( void )
 		
 		CSetting* pSetting;
 		TOKEN_ELEVATION elevated = { FALSE };
-		DWORD ReturnLength;
+		DWORD returnLength;
 		if (!IsWin11()) {
 			HideSetting(L"UseTaskbarAl", true);
 			pSetting = FindSetting(L"AlignToCenter");
@@ -5124,15 +5124,15 @@ void UpdateSettings( void )
 		}
 		else {
 		// Mouse hook events are not getting triggered when foreground window is running as admin.
-		// Unfortunately, peek desktop window is from some admin process (not explorer).
-		// So, if we install hook and peek desktop it will never come back until physical press of Win button or Ctrl+Alt+Delete.
-		// Therefore, disable Peek Desktop option if UAC is turned on.
+		// Unfortunately, peek desktop window is LivePreview window of dwm.exe
+		// So, if we install hook and peek desktop it will never returns until physical press of Win button or Ctrl+Alt+Delete.
+		// Therefore, disabling  Peek Desktop option if UAC is turned on.
 #define NtCurrentProcessToken() ((HANDLE)(LONG_PTR)-4) // NtOpenProcessToken(NtCurrentProcess())
-			GetTokenInformation(NtCurrentProcessToken(), TokenElevation, &elevated, sizeof(elevated), &ReturnLength);
+			GetTokenInformation(NtCurrentProcessToken(), TokenElevation, &elevated, sizeof(elevated), &returnLength);
 		}
 		if (!IsWin11() || !elevated.TokenIsElevated) {
 			pSetting = FindSetting(L"PeekDesktopW11");
-			pSetting->flags |= CSetting::FLAG_HIDDEN | (elevated.TokenIsElevated ? CSetting::FLAG_NOSAVE : 0);	// restore setting when UAC is turned off
+			pSetting->flags |= CSetting::FLAG_HIDDEN | (IsWin11() && elevated.TokenIsElevated ? CSetting::FLAG_NOSAVE : 0);	// restore setting when UAC is turned off
 			pSetting->value = 0;
 			HideSetting(L"PDW11_TaskbarSD", true);
 			HideSetting(L"PDW11_DelayTime", true);

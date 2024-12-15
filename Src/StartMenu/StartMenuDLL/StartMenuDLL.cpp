@@ -3521,12 +3521,13 @@ static BOOL PDW11_WinDown = FALSE;
 static UINT_PTR PDW11_timer = NULL;
 static HHOOK PDW11_hk = NULL;
 
-LPRECT PDW11_GetPeekBox(LPRECT rcTray)
+BOOLEAN PDW11_PtInPeekBox(POINT pt)
 {
-	GetWindowRect(g_TrayWnd, rcTray);
-	rcTray->left = rcTray->right - ScaleForDpi(g_TrayWnd, 12);
-	rcTray->right += 1, rcTray->bottom += 1;
-	return rcTray;
+	RECT rcTray;
+	GetWindowRect(g_TrayWnd, &rcTray);
+	rcTray.left = rcTray.right - ScaleForDpi(g_TrayWnd, 12);
+	rcTray.right += 1, rcTray.bottom += 1;
+	return PtInRect(&rcTray, pt);
 }
 
 UINT PDW11_RWinUp( void )
@@ -3554,8 +3555,7 @@ static LRESULT CALLBACK PeekDeskW11MouseProcLL(int nCode, WPARAM wParam, LPARAM 
 	if (PDW11_WinDown) {
 		if (nCode == HC_ACTION && wParam == WM_MOUSEMOVE) {
 			auto info = (LPMSLLHOOKSTRUCT)lParam;
-			RECT rcBox;
-			if (!PtInRect(PDW11_GetPeekBox(&rcBox), info->pt)) {
+			if (!PDW11_PtInPeekBox(info->pt)) {
 				PDW11_RWinUp();
 				PDW11_WinDown = FALSE;
 
@@ -3576,23 +3576,24 @@ VOID CALLBACK PDW11_TryPeekAsync(HWND hWnd, UINT uMessage, UINT_PTR uEventId, DW
 	KillTimer(NULL, PDW11_timer);
 	PDW11_timer = NULL;
 
-	RECT rcBox;
 	POINT pt;
 	GetCursorPos(&pt);
-	if (PtInRect(PDW11_GetPeekBox(&rcBox), pt)) {
-		INPUT inputs[3] = {};
+	if (PDW11_PtInPeekBox(pt)) {
+		//INPUT inputs[3] = {};
 
-		inputs[0].type = INPUT_KEYBOARD;
-		inputs[0].ki.wVk = VK_RWIN;
+		//inputs[0].type = INPUT_KEYBOARD;
+		//inputs[0].ki.wVk = VK_RWIN;
 
-		inputs[1].type = INPUT_KEYBOARD;
-		inputs[1].ki.wVk = VK_OEM_COMMA;
+		//inputs[1].type = INPUT_KEYBOARD;
+		//inputs[1].ki.wVk = VK_OEM_COMMA;
 
-		inputs[2].type = INPUT_KEYBOARD;
-		inputs[2].ki.wVk = VK_OEM_COMMA;
-		inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
+		//inputs[2].type = INPUT_KEYBOARD;
+		//inputs[2].ki.wVk = VK_OEM_COMMA;
+		//inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
 
-		if (SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT))) {
+		//if (SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT)))
+		if (PostMessage(g_TaskBar, WM_HOTKEY, 0x204, MAKELPARAM(MOD_WIN, VK_OEM_COMMA)))
+		{
 			PDW11_WinDown = TRUE;
 
 			if (!PDW11_hk)
@@ -3620,15 +3621,17 @@ static LRESULT CALLBACK HookDesktopThreadMouse(int code, WPARAM wParam, LPARAM l
 				taskBar = FindTaskBarInfoBar(GetAncestor(info->hwnd, GA_ROOT)); // click on taskbar
 
 				// Peek Desktop for Windows 11 feature
-				if (!PDW11_timer && GetSettingBool(L"PeekDesktopW11") && taskBar && g_TrayWnd && wParam == WM_MOUSEMOVE) {
-					RECT rcBox;
-					if (PtInRect(PDW11_GetPeekBox(&rcBox), info->pt)) {
-						// Optimization: check for registry only if mouse in PeekBox
-						// if system taskbar peek button is off and PDW11_TaskbarSD not set, peek desktop anyway
-						if (!GetSettingBool(L"PDW11_TaskbarSD") || GetWin11TaskbarSD()) {
-							int delay = GetSettingInt(L"PDW11_DelayTime");
-							PDW11_timer = SetTimer(NULL, NULL, delay < 100 ? 100 : delay, PDW11_TryPeekAsync);	// 100ms is minimum stable delay in my tests
-						}
+				if (taskBar && wParam == WM_MOUSEMOVE && g_TrayWnd &&
+					!PDW11_timer && GetSettingBool(L"PeekDesktopW11") && PDW11_PtInPeekBox(info->pt))
+				{
+					// Optimization: check for registry only if mouse in PeekBox.
+					// If system taskbar peek button is off and PDW11_TaskbarSD not set, peek desktop anyway
+					if (!GetSettingBool(L"PDW11_TaskbarSD") || GetWin11TaskbarSD())
+					{
+						int delay = GetSettingInt(L"PDW11_DelayTime");
+						if (delay == 0)
+							SystemParametersInfo(SPI_GETMOUSEHOVERTIME, sizeof(delay), &delay, 0);
+						PDW11_timer = SetTimer(NULL, NULL, delay < 100 ? 100 : delay, PDW11_TryPeekAsync);	// 100ms is minimum stable delay in my tests
 					}
 				}
 
@@ -3640,13 +3643,18 @@ static LRESULT CALLBACK HookDesktopThreadMouse(int code, WPARAM wParam, LPARAM l
 			{
 				// steal messages from other than our custom button window
 				PostMessage(taskBar->oldButton, (UINT)wParam, 0, MAKELPARAM(info->pt.x, info->pt.y));
-				// Do bypass when Start button replace disabled or set on special custom button (with only "pressed" icon for ex.)
+				// Bypass if Start button replace disabled or button is set to special custom button (e.g with only "pressed" icon)
 				// This allows taskbar to display default hover animation
 				if (wParam == WM_MOUSEMOVE &&
 					!CMenuContainer::IsMenuOpened() &&
 					(!GetSettingBool(L"EnableStartButton") || GetStartButtonType() == START_BUTTON_CUSTOM))
-					return CallNextHookEx(NULL, code, wParam, lParam);
-				return 1;
+				{
+					// NOTHING
+				}
+				else
+				{
+					return 1;
+				}
 			}
 		}
 	}
