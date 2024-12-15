@@ -1300,7 +1300,7 @@ BEGIN
 	IDS_PDW11_TASKBARSD		"Follow system taskbar behavior"
 	IDS_PDW11_TASKBARSD_TIP	"Peek desktop feature will only work if ""Select the far corner of the taskbar to show desktop"" option set in Settings - Personalization - Taskbar - Taskbar behavior."
 	IDS_PDW11_DELAY			"Hover delay"
-	IDS_PDW11_DELAY_TIP		"Enter delay (in ms) for hovering over tray edge to peek desktop (default is system hover time, minimum custom is 100ms)"
+	IDS_PDW11_DELAY_TIP		"Enter delay (in ms) for hovering over tray edge to peek desktop (default is system hover time, minimum custom is 100ms)"
 END
 
 STRINGTABLE 

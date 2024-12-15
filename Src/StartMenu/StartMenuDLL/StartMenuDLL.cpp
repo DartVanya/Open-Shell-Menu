@@ -605,6 +605,11 @@ UINT GetTaskbarPosition( HWND taskBar, MONITORINFO *pInfo, HMONITOR *pMonitor, R
 		SHAppBarMessage(ABM_GETTASKBARPOS,&appbar);
 		if (pRc)
 		{
+			if (RECT rc; GetWindowRgnBox(taskBar,&rc)!=ERROR)
+			{
+				MapWindowPoints(taskBar,NULL,(POINT*)&rc,2);
+				appbar.rc=rc;
+			}
 			*pRc=appbar.rc;
 			RECT rc;
 			GetWindowRect(taskBar,&rc);
@@ -1220,6 +1225,11 @@ static void UpdateStartButtonPosition(const TaskbarInfo* taskBar, const WINDOWPO
 
 	RECT rcTask;
 	GetWindowRect(taskBar->taskBar, &rcTask);
+	if (RECT rc; GetWindowRgnBox(taskBar->taskBar, &rc) != ERROR)
+	{
+		MapWindowPoints(taskBar->taskBar, NULL, (POINT*)&rc, 2);
+		rcTask = rc;
+	}
 	MONITORINFO info;
 	UINT uEdge = GetTaskbarPosition(taskBar->taskBar, &info, NULL, NULL);
 	DWORD buttonFlags = SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSIZE;
@@ -3606,6 +3616,7 @@ static LRESULT CALLBACK PDW11_MouseProcLL(int nCode, WPARAM wParam, LPARAM lPara
 			else if (PDW11_hk)
 			{
 				UnhookWindowsHookEx(PDW11_hk); PDW11_hk = NULL;
+				PDW11_PreviewOpen = FALSE;
 			}
 		}
 	}

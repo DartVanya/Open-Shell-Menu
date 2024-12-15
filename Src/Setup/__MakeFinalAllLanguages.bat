@@ -1,7 +1,7 @@
 @echo off
 rem This file is to create all the files required for a new release to publish
 
-set PATH=C:\Program Files\7-Zip\;C:\Program Files (x86)\HTML Help Workshop;C:\Program Files (x86)\WiX Toolset v3.11\bin\;%PATH%
+set PATH=C:\Program Files\7-Zip\;C:\Program Files (x86)\HTML Help Workshop;C:\Program Files (x86)\WiX Toolset v3.14\bin\;%PATH%
 
 cd %~dp0
 

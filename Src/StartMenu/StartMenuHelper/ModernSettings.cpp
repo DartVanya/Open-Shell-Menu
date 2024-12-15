@@ -327,8 +327,14 @@ static std::vector<std::vector<uint8_t>> ParseModernSettings()
 		doc->put_async(VARIANT_FALSE);
 
 		wchar_t path[MAX_PATH]{};
-		wcscpy_s(path, LR"(%windir%\ImmersiveControlPanel\Settings\AllSystemSettings_{253E530E-387D-4BC2-959D-E6F86122E5F2}.xml)");
+		wcscpy_s(path, LR"(%windir%\ImmersiveControlPanel\Settings\AllSystemSettings_{FDB289F3-FCFC-4702-8015-18926E996EC1}.xml)");
 		DoEnvironmentSubst(path, _countof(path));
+
+		if (!PathFileExists(path))
+		{
+			wcscpy_s(path, LR"(%windir%\ImmersiveControlPanel\Settings\AllSystemSettings_{253E530E-387D-4BC2-959D-E6F86122E5F2}.xml)");
+			DoEnvironmentSubst(path, _countof(path));
+		}
 
 		VARIANT_BOOL loaded;
 		if (SUCCEEDED(doc->load(CComVariant(path), &loaded)) && loaded)
