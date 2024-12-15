@@ -37,7 +37,7 @@ typedef std::map<size_t,TaskbarInfo> id_taskbar_map;
 id_taskbar_map g_TaskbarInfos;
 static int g_LastTaskbar=MAIN_TASK_BAR;
 static int g_NextTaskbar=0;
-HWND g_TaskBar, g_OwnerWindow, g_TrayWnd;
+HWND g_TaskBar, g_OwnerWindow;
 HWND g_TopWin7Menu, g_AllPrograms, g_ProgramsButton, g_UserPic; // from the Windows menu
 HWND g_ProgWin;
 HMONITOR g_WSMHMonitor;
@@ -473,8 +473,6 @@ STARTMENUAPI HWND FindTaskBar( DWORD process )
 			}
 			g_OwnerWindow=g_Owner.Create(NULL,0,0,WS_POPUP,WS_EX_TOOLWINDOW|WS_EX_TOPMOST);
 		}
-		if (!g_TrayWnd)
-			g_TrayWnd = FindWindowEx(g_TaskBar, NULL, L"TrayNotifyWnd", NULL);
 	}
 	return g_TaskBar;
 }
@@ -3528,109 +3526,107 @@ static LRESULT CALLBACK HookProgManThread( int code, WPARAM wParam, LPARAM lPara
 }
 
 #include <tlhelp32.h>
-static BOOL PDW11_PreviewOpen = FALSE;
-static UINT_PTR PDW11_timer = NULL;
-static HHOOK PDW11_hk = NULL;
+#define SHELL_HOTKEY_PEEK_DESKTOP 0x204
 
-BOOLEAN PDW11_PtInPeekBox(POINT pt)
+class PeekDesktopW11
 {
-	RECT rcTray;
-	GetWindowRect(g_TrayWnd, &rcTray);
-	rcTray.left = rcTray.right - ScaleForDpi(g_TrayWnd, 12);
-	rcTray.right += 1, rcTray.bottom += 1;
-	return PtInRect(&rcTray, pt);
-}
+	HWND trayWnd;
+	UINT_PTR timer;
+public:
+	BOOLEAN PreviewOpen;
 
-BOOLEAN PDW11_CloseLivePreview( void )
-{
-	BOOLEAN retval = FALSE;
-	WCHAR className[MAX_PATH] = L"";
-	HWND activeWindow = GetForegroundWindow();
+	PeekDesktopW11() : PreviewOpen(FALSE), trayWnd(NULL), timer(NULL) {};
 
-	GetClassName(activeWindow, className, _countof(className));
-	if (!wcscmp(className, L"LivePreview"))
+	void PeekDesktop(int delay)
 	{
-		DWORD activeWndPid = 0;
-		DWORD dwmPid = 0;
-		GetWindowThreadProcessId(activeWindow, &activeWndPid);
-		// Even on admin we cannot open dwm process with PROCESS_QUERY_LIMITED_INFORMATION w/o SeDebugPrivilege.
-		// So we cannot use QueryFullProcessImageName to obtain image name.
-		// Use snapshot to find dwm PID.
-		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, FALSE);
-		if (hSnapshot)
-		{
-			PROCESSENTRY32 entry = { sizeof(PROCESSENTRY32) };
-			if (Process32First(hSnapshot, &entry))
-			{
-				do
-				{
-					if (!wcscmp(entry.szExeFile, L"dwm.exe"))
-					{
-						dwmPid = entry.th32ProcessID;
-						break;
-					}
-				} while (Process32Next(hSnapshot, &entry));
-			}
-			CloseHandle(hSnapshot);
-		}
+		if (!timer)
+			timer = SetTimer(NULL, NULL, delay < 100 ? 100 : delay, PeekDesktopW11::TryPeekAsync);	// 100ms is minimum stable delay in my tests
+	}
 
-		if (dwmPid && dwmPid == activeWndPid)
-			retval = !!SendMessage(activeWindow, WM_CLOSE, 0, 0);	// close preview
-		else
+	void CloseLivePreview(void)
+	{
+		if (PreviewOpen)
 		{
-			//HANDLE dwmProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, activeWndPid);
-			//if (GetLastError() == ERROR_ACCESS_DENIED) // HACK
-			//	retval = !!SendMessage(activeWindow, WM_CLOSE, 0, 0);
-			//if (dwmProcess)
-			//	CloseHandle(dwmProcess);
+			HWND activeWindow = GetForegroundWindow();
+			if (IsDwmLivePreviewWindow(activeWindow))
+			{
+				SendMessage(activeWindow, WM_CLOSE, 0, 0);
+				PreviewOpen = IsDwmLivePreviewWindow(GetForegroundWindow());
+			}
 		}
 	}
-	return retval;
 
-	//INPUT input = {};
-	//input.type = INPUT_KEYBOARD;
-	//input.ki.wVk = VK_RWIN;
-	//input.ki.dwFlags = KEYEVENTF_KEYUP;
-	//return !!SendInput(1, &input, sizeof(INPUT));
-}
-
-static LRESULT CALLBACK PDW11_MouseProcLL(int nCode, WPARAM wParam, LPARAM lParam)
-{
-	if (nCode == HC_ACTION)
+	BOOLEAN PtInPeekBox(POINT point)
 	{
-		if (PDW11_PreviewOpen)
-		{
-			if (wParam == WM_MOUSEMOVE)
-			{
-				auto info = reinterpret_cast<LPMSLLHOOKSTRUCT>(lParam);
-				if (!PDW11_PtInPeekBox(info->pt))
-				{
-					if (PDW11_hk)
-					{
-						UnhookWindowsHookEx(PDW11_hk); PDW11_hk = NULL;
-					}
+		RECT rcBox;
+		return GetPeekBox(&rcBox) && PtInRect(&rcBox, point);
+	}
+	BOOLEAN PtInPeekBox()
+	{
+		RECT rcBox;
+		POINT point;
+		return GetPeekBox(&rcBox) && GetCursorPos(&point) && PtInRect(&rcBox, point);
+	}
 
-					PDW11_PreviewOpen = PDW11_CloseLivePreview();
+private:
+	static VOID CALLBACK TryPeekAsync(HWND hWnd, UINT uMessage, UINT_PTR uEventId, DWORD dwTime);
+	void KillTimer(void)
+	{
+		if (timer)
+			::KillTimer(NULL, timer), timer = NULL;
+	}
+	inline BOOLEAN GetPeekBox(LPRECT RectBox)
+	{
+		if (!trayWnd)
+			trayWnd = FindWindowEx(g_TaskBar, NULL, L"TrayNotifyWnd", NULL);
+		if (GetWindowRect(trayWnd, RectBox))
+		{
+			RectBox->left = RectBox->right - ScaleForDpi(trayWnd, 12);
+			RectBox->right += 1, RectBox->bottom += 1;
+			return TRUE;
+		}
+		return FALSE;
+	}
+	BOOLEAN IsDwmLivePreviewWindow(HWND WindowHandle)
+	{
+		BOOLEAN isPreviewWnd = FALSE;
+		WCHAR className[MAX_PATH] = L"";
+		DWORD windowPid = 0;
+		GetClassName(WindowHandle, className, _countof(className));
+		if (!wcscmp(className, L"LivePreview") && GetWindowThreadProcessId(WindowHandle, &windowPid))
+		{
+			// Even on admin we cannot open dwm process with PROCESS_QUERY_LIMITED_INFORMATION w/o SeDebugPrivilege.
+			// So we cannot use QueryFullProcessImageName to obtain image name.
+			// Use snapshot to find dwm PID.
+			HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, FALSE);
+			if (hSnapshot)
+			{
+				PROCESSENTRY32 entry = { sizeof(PROCESSENTRY32) };
+				if (Process32First(hSnapshot, &entry))
+				{
+					do
+					{
+						if (!wcscmp(entry.szExeFile, L"dwm.exe"))
+						{
+							isPreviewWnd = entry.th32ProcessID == windowPid;
+							break;
+						}
+					} while (Process32Next(hSnapshot, &entry));
 				}
-			}
-			else if (PDW11_hk)
-			{
-				UnhookWindowsHookEx(PDW11_hk); PDW11_hk = NULL;
-				PDW11_PreviewOpen = FALSE;
+				CloseHandle(hSnapshot);
 			}
 		}
+		return isPreviewWnd;
 	}
-	return CallNextHookEx(NULL, nCode, wParam, lParam);
-}
+};
 
-VOID CALLBACK PDW11_TryPeekAsync(HWND hWnd, UINT uMessage, UINT_PTR uEventId, DWORD dwTime)
+PeekDesktopW11 PDW11;
+
+VOID PeekDesktopW11::TryPeekAsync(HWND hWnd, UINT uMessage, UINT_PTR uEventId, DWORD dwTime)
 {
-	KillTimer(NULL, PDW11_timer);
-	PDW11_timer = NULL;
+	PDW11.KillTimer();
 
-	POINT pt;
-	GetCursorPos(&pt);
-	if (PDW11_PtInPeekBox(pt)) {
+	if (!PDW11.PreviewOpen && PDW11.PtInPeekBox()) {
 		//INPUT inputs[3] = {};
 
 		//inputs[0].type = INPUT_KEYBOARD;
@@ -3644,12 +3640,9 @@ VOID CALLBACK PDW11_TryPeekAsync(HWND hWnd, UINT uMessage, UINT_PTR uEventId, DW
 		//inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
 
 		//if (SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT)))
-		if (PostMessage(g_TaskBar, WM_HOTKEY, 0x204, MAKELPARAM(MOD_WIN, VK_OEM_COMMA)))
+		if (PostMessage(g_TaskBar, WM_HOTKEY, SHELL_HOTKEY_PEEK_DESKTOP, MAKELPARAM(MOD_WIN, VK_OEM_COMMA)))
 		{
-			PDW11_PreviewOpen = TRUE;
-
-			if (!PDW11_hk)
-				PDW11_hk = SetWindowsHookEx(WH_MOUSE_LL, PDW11_MouseProcLL, g_Instance, NULL);
+			PDW11.PreviewOpen = TRUE;
 		}
 	}
 }
@@ -3680,17 +3673,17 @@ static LRESULT CALLBACK HookDesktopThreadMouse(int code, WPARAM wParam, LPARAM l
 				taskBar = FindTaskBarInfoBar(GetAncestor(info->hwnd, GA_ROOT)); // click on taskbar
 
 				// Peek Desktop for Windows 11 feature
-				if (taskBar && wParam == WM_MOUSEMOVE && g_TrayWnd &&
-					!PDW11_PreviewOpen && GetSettingBool(L"PeekDesktopW11") && PDW11_PtInPeekBox(info->pt))
+				if (taskBar && wParam == WM_MOUSEMOVE &&
+					!PDW11.PreviewOpen && GetSettingBool(L"PeekDesktopW11") && PDW11.PtInPeekBox(info->pt))
 				{
 					// Optimization: check for registry only if mouse in PeekBox.
 					// If system taskbar peek button is off and PDW11_TaskbarSD not set, peek desktop anyway
-					if (!PDW11_timer && (!GetSettingBool(L"PDW11_TaskbarSD") || GetWin11TaskbarSD()))
+					if (!GetSettingBool(L"PDW11_TaskbarSD") || GetWin11TaskbarSD())
 					{
 						int delay = GetSettingInt(L"PDW11_DelayTime");
 						if (delay == 0)
 							SystemParametersInfo(SPI_GETMOUSEHOVERTIME, sizeof(delay), &delay, 0);
-						PDW11_timer = SetTimer(NULL, NULL, delay < 100 ? 100 : delay, PDW11_TryPeekAsync);	// 100ms is minimum stable delay in my tests
+						PDW11.PeekDesktop(delay);
 					}
 				}
 
@@ -4316,6 +4309,19 @@ if (!g_bTrimHooks)
 			}
 		}
 
+		// Peek Desktop for Windows 11 feature
+		if (PDW11.PreviewOpen)
+		{
+			//static UINT shellHookMsg = RegisterWindowMessage(L"SHELLHOOK");
+
+			if (msg->message == WM_COPYDATA || /*msg->message == shellHookMsg ||*/ msg->message > WM_USER || msg->message == WM_MOUSEMOVE)
+			{
+				if (!PDW11.PtInPeekBox(msg->pt))
+				{
+					PDW11.CloseLivePreview();
+				}
+			}
+		}
 	}
 	return CallNextHookEx(NULL,code,wParam,lParam);
 }

@@ -5114,28 +5114,37 @@ void UpdateSettings( void )
 		UpdateSetting(L"SkinOptionsW7",CComVariant(options3),false);
 		
 		CSetting* pSetting;
-		TOKEN_ELEVATION elevated = { FALSE };
-		DWORD returnLength;
-		if (!IsWin11()) {
-			HideSetting(L"UseTaskbarAl", true);
+		if (!IsWin11())
+		{
 			pSetting = FindSetting(L"AlignToCenter");
 			pSetting->flags |= CSetting::FLAG_HIDDEN;
 			pSetting->value = 0;
+			HideSetting(L"UseTaskbarAl", true);
+
+			pSetting = FindSetting(L"PeekDesktopW11");
+			pSetting->flags |= CSetting::FLAG_HIDDEN;
+			pSetting->value = 0;
+			HideSetting(L"PDW11_TaskbarSD", true);
+			HideSetting(L"PDW11_DelayTime", true);
 		}
-		else {
+		else
+		{
 		// Mouse hook events are not getting triggered when foreground window is running as admin.
 		// Unfortunately, peek desktop window is LivePreview window of dwm.exe
 		// So, if we install hook and peek desktop it will never returns until physical press of Win button or Ctrl+Alt+Delete.
 		// Therefore, disabling  Peek Desktop option if UAC is turned on.
 #define NtCurrentProcessToken() ((HANDLE)(LONG_PTR)-4) // NtOpenProcessToken(NtCurrentProcess())
+			TOKEN_ELEVATION elevated = { FALSE };
+			DWORD returnLength;
 			GetTokenInformation(NtCurrentProcessToken(), TokenElevation, &elevated, sizeof(elevated), &returnLength);
-		}
-		if (!IsWin11() || !elevated.TokenIsElevated) {
-			pSetting = FindSetting(L"PeekDesktopW11");
-			pSetting->flags |= CSetting::FLAG_HIDDEN | (IsWin11() && elevated.TokenIsElevated ? CSetting::FLAG_NOSAVE : 0);	// restore setting when UAC is turned off
-			pSetting->value = 0;
-			HideSetting(L"PDW11_TaskbarSD", true);
-			HideSetting(L"PDW11_DelayTime", true);
+			if (!elevated.TokenIsElevated)
+			{
+				pSetting = FindSetting(L"PeekDesktopW11");
+				pSetting->flags |= CSetting::FLAG_HIDDEN | CSetting::FLAG_NOSAVE;	// restore setting when UAC is turned off
+				pSetting->value = 0;
+				HideSetting(L"PDW11_TaskbarSD", true);
+				HideSetting(L"PDW11_DelayTime", true);
+			}
 		}
 	}
 
