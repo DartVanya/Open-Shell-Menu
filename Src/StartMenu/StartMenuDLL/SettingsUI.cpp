@@ -5129,10 +5129,12 @@ void UpdateSettings( void )
 		}
 		else
 		{
-		// Mouse hook events are not getting triggered when foreground window is running as admin.
-		// Unfortunately, peek desktop window is LivePreview window of dwm.exe
-		// So, if we install hook and peek desktop it will never returns until physical press of Win button or Ctrl+Alt+Delete.
-		// Therefore, disabling  Peek Desktop option if UAC is turned on.
+		// Peek desktop window is LivePreview window of dwm.exe. DWM is running at the system integrity level.
+		// If UAC is on, explorer is running at medium. And this is the main problem.
+		// I couldn't break through the UIPI wall:
+		// any send message or input generate methods fail and cannot dismiss the preview.
+		// Only physical press of Win button, mouse clicks or Ctrl+Alt+Delete can close preview.
+		// Therefore, disabling Peek Desktop option if UAC is turned on.
 #define NtCurrentProcessToken() ((HANDLE)(LONG_PTR)-4) // NtOpenProcessToken(NtCurrentProcess())
 			TOKEN_ELEVATION elevated = { FALSE };
 			DWORD returnLength;
