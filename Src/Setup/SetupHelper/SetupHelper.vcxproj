@@ -39,6 +39,9 @@
     <ClCompile Include="SetupHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ResourceCompile Include="SetupHelper.rc" />
+  </ItemGroup>
+  <ItemGroup>
     <Manifest Include="SetupHelper.manifest" />
   </ItemGroup>
   <ItemGroup>

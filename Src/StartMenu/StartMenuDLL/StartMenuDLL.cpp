@@ -1216,6 +1216,19 @@ void EnableHotkeys( THotkeys enable )
 	}
 }
 
+bool IsTouchTaskbar(void)
+{
+	if (!IsWin11())
+		return false;
+
+	CRegKey regKey;
+	if (regKey.Open(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer") != ERROR_SUCCESS)
+		return false;
+
+	DWORD val;
+	return regKey.QueryDWORDValue(L"TabletPostureTaskbar", val) == ERROR_SUCCESS && val;
+}
+
 static void UpdateStartButtonPosition(const TaskbarInfo* taskBar, const WINDOWPOS* pPos)
 {
 	if (IsStartButtonSmallIcons(taskBar->taskbarId) != IsTaskbarSmallIcons())
@@ -1223,10 +1236,13 @@ static void UpdateStartButtonPosition(const TaskbarInfo* taskBar, const WINDOWPO
 
 	RECT rcTask;
 	GetWindowRect(taskBar->taskBar, &rcTask);
-	if (RECT rc; GetWindowRgnBox(taskBar->taskBar, &rc) != ERROR)
+	if (IsTouchTaskbar())
 	{
-		MapWindowPoints(taskBar->taskBar, NULL, (POINT*)&rc, 2);
-		rcTask = rc;
+		if (RECT rc; GetWindowRgnBox(taskBar->taskBar, &rc) != ERROR)
+		{
+			MapWindowPoints(taskBar->taskBar, NULL, (POINT*)&rc, 2);
+			rcTask = rc;
+		}
 	}
 	MONITORINFO info;
 	UINT uEdge = GetTaskbarPosition(taskBar->taskBar, &info, NULL, NULL);
@@ -3093,6 +3109,9 @@ static void InitStartMenuDLL( void )
 			taskBar.chevron=FindWindowEx(tray,NULL,L"Button",NULL);
 		if (taskBar.chevron)
 			SetWindowSubclass(taskBar.chevron,SubclassTrayChevronProc,'CLSH',taskBar.taskbarId);
+		taskBar.news=FindWindowEx(g_TaskBar,NULL,L"DynamicContent2",NULL);
+		if (taskBar.news)
+			SetWindowSubclass(taskBar.news,SubclassTrayChevronProc,'CLSH',taskBar.taskbarId);
 	}
 
 	HandleTaskbarParts(taskBar,true);
@@ -3182,11 +3201,14 @@ static void RecreateStartButton( size_t taskbarId )
 		RECT rcTask;
 		GetWindowRect(taskBar.taskBar,&rcTask);
 		PostMessage(taskBar.taskBar,WM_SIZE,SIZE_RESTORED,MAKELONG(rcTask.right-rcTask.left,rcTask.bottom-rcTask.top));
-		for (auto btn : taskBar.trayButtons)
+		if (taskBar.taskBar==g_TaskBar)
 		{
-			RECT rc;
-			GetWindowRect(btn,&rc);
-			SetWindowPos(btn,HWND_TOP,rc.left,rc.top,0,0,SWP_NOSIZE|SWP_NOACTIVATE|SWP_NOZORDER);
+			for (auto btn : taskBar.trayButtons)
+			{
+				RECT rc;
+				GetWindowRect(btn,&rc);
+				SetWindowPos(btn,HWND_TOP,rc.left,rc.top,0,0,SWP_NOSIZE|SWP_NOACTIVATE|SWP_NOZORDER);
+			}
 		}
 	}
 }
@@ -3279,6 +3301,8 @@ if (!g_bTrimHooks)
 		}
 		if (it->second.chevron)
 			RemoveWindowSubclass(it->second.chevron,SubclassTrayChevronProc,'CLSH');
+		if (it->second.news)
+			RemoveWindowSubclass(it->second.news,SubclassTrayChevronProc,'CLSH');
 		if (it->second.desktop)
 			RemoveWindowSubclass(it->second.desktop,SubclassDesktopButtonProc,'CLSH');
 		if (it->second.bTimer)

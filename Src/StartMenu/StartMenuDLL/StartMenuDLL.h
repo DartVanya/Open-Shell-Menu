@@ -47,7 +47,7 @@ void EnableStartTooltip( bool bEnable );
 
 struct TaskbarInfo
 {
-	TaskbarInfo( void ) { taskbarId=pointerId=0; taskBar=startButton=oldButton=rebar=taskList=chevron=desktop=NULL; startButtonSize.cx=startButtonSize.cy=0; oldButtonSize.cx=oldButtonSize.cy=0; bTimer=bCustomLook=bReplaceButton=bHideButton=bRecreatingButton=bThemeChanging=false; }
+	TaskbarInfo( void ) { taskbarId=pointerId=0; taskBar=startButton=oldButton=rebar=taskList=chevron=news=desktop=NULL; startButtonSize.cx=startButtonSize.cy=0; oldButtonSize.cx=oldButtonSize.cy=0; bTimer=bCustomLook=bReplaceButton=bHideButton=bRecreatingButton=bThemeChanging=false; }
 	int taskbarId;
 	HWND taskBar;
 	HWND startButton; // either own start button or the win7 start button (depending on bReplaceButton)
@@ -55,6 +55,7 @@ struct TaskbarInfo
 	HWND rebar;
 	HWND taskList;
 	HWND chevron;
+	HWND news;
 	HWND desktop;
 	SIZE startButtonSize;
 	SIZE oldButtonSize;
