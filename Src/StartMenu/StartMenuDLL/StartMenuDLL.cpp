@@ -1655,11 +1655,23 @@ static void ShowWinX( void )
 {
 	if (IsWin11())
 	{
-		HWND hwnd=FindWindowEx(NULL,NULL,L"Shell_TrayWnd",NULL);
-		if (hwnd)
-			PostMessage(hwnd,WM_HOTKEY,590,MAKELPARAM(MOD_WIN,'X'));
+		bool use_post_method = true;
+		CRegKey regKey;
+		DWORD val;
+		if (regKey.Open(HKEY_CURRENT_USER, LR"(Software\ExplorerPatcher)", KEY_READ) == ERROR_SUCCESS)
+		{
+			// Check if taskbar style is set to Windows 11 (default)
+			use_post_method = regKey.QueryDWORDValue(L"OldTaskbar", val) == ERROR_SUCCESS && val == 0;
+		}
 
-		return;
+		if (use_post_method)
+		{
+			HWND hwnd = FindWindowEx(NULL, NULL, L"Shell_TrayWnd", NULL);
+			if (hwnd)
+				PostMessage(hwnd, WM_HOTKEY, 590, MAKELPARAM(MOD_WIN, 'X'));
+
+			return;
+		}
 	}
 
 	if (GetWinVersion()>=WIN_VER_WIN10)
