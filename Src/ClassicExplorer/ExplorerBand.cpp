@@ -332,8 +332,11 @@ LRESULT CALLBACK CBandWindow::CBandWindowSubclassProc(HWND hWnd, UINT uMsg, WPAR
 			if (dwDrawStage == CDDS_ITEMPOSTPAINT) {
 				HDC hdc = lpNMCustomDraw->nmcd.hdc;
 				RECT& rc = lpNMCustomDraw->nmcd.rc;
-				int triangleLeft = rc.right - 9, triangleTop = (rc.bottom - rc.top) / 2 + 2;
-				POINT vertices[] = { {triangleLeft, triangleTop}, {triangleLeft + 6, triangleTop}, {triangleLeft + 3, triangleTop + 3} };
+				int triangleLeft = rc.right - (GetDpi(hWnd) > USER_DEFAULT_SCREEN_DPI ? ScaleForDpi(hWnd, 10) : 9);
+				int triangleTop = (rc.bottom - rc.top) / 2 + MulDiv(2, USER_DEFAULT_SCREEN_DPI, GetDpi(hWnd));
+				int w = ScaleForDpi(hWnd, 6);
+				w -= w % 2;
+				POINT vertices[] = { {triangleLeft, triangleTop}, {triangleLeft + w, triangleTop}, {triangleLeft + w/2, triangleTop + w/2} };
 				SetDCPenColor(hdc, RGB(0xDE, 0xDE, 0xDE));
 				SetDCBrushColor(hdc, RGB(0xDE, 0xDE, 0xDE));
 				SelectObject(hdc, GetStockObject(DC_PEN));

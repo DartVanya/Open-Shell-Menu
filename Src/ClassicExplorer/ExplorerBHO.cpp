@@ -19,6 +19,7 @@
 #include <dwmapi.h>
 #include <Ntquery.h>
 #include <algorithm>
+#include <Vsstyle.h>
 
 // CExplorerBHO - a browser helper object that implements Alt+Enter for the folder tree
 
@@ -626,16 +627,27 @@ LRESULT CALLBACK CExplorerBHO::SubclassStatusProc8( HWND hWnd, UINT uMsg, WPARAM
 		WCHAR textPart[1024];
 		HBRUSH brBorder = (HBRUSH)GetStockObject(DC_BRUSH);
 		HICON hIcon;
-		GetTextExtentPoint32(hdc, L"T", 1, &size);
-		int cxIcon = GetSystemMetrics(SM_CXSMICON);
+		int cxIcon, parts;
+		HTHEME hTheme;
 
 		GetClientRect(hWnd, &rcClient);
 		SelectObject(hdc, (HGDIOBJ)DefSubclassProc(hWnd, WM_GETFONT, NULL, NULL));
 		SetDCBrushColor(hdc, RGB(0x5E, 0x5E, 0x5E));
 		SetBkMode(hdc, TRANSPARENT);
 		SetTextColor(hdc, RGB(0xFF, 0xFF, 0xFF));
+		GetTextExtentPoint32(hdc, L"T", 1, &size);
+		cxIcon = GetSystemMetrics(SM_CXSMICON);
 
-		int parts = (int)DefSubclassProc(hWnd, SB_GETPARTS, NULL, NULL);
+		// Draw resize corner
+		if (hTheme = OpenThemeData(hWnd, L"STATUS")) {
+			rc.left = rcClient.right - GetSystemMetrics(SM_CXHSCROLL) + (GetDpi(hWnd) < USER_DEFAULT_SCREEN_DPI * 1.75 ? 1 : 6);
+			rc.top = rcClient.bottom - GetSystemMetrics(SM_CYVSCROLL);
+			rc.right = rcClient.right, rc.bottom = rcClient.bottom;
+			DrawThemeBackground(hTheme, hdc, SP_GRIPPER, 0, &rc, &rc);
+			CloseThemeData(hTheme);
+		}
+
+		parts = (int)DefSubclassProc(hWnd, SB_GETPARTS, NULL, NULL);
 		for (int i = 0; i < parts; ++i) {
 			DefSubclassProc(hWnd, SB_GETRECT, i, (LPARAM)&rc);
 			if (IntersectRect(&rcInter, &rc, &ps.rcPaint)) {
@@ -655,30 +667,30 @@ LRESULT CALLBACK CExplorerBHO::SubclassStatusProc8( HWND hWnd, UINT uMsg, WPARAM
 				}
 
 				// Draw separators
-				if (parts != 1 && !(flags & SBT_NOBORDERS) && rcSep.right < rcClient.right - 16) {
+				if (parts != 1 && i != parts - 1 && !(flags & SBT_NOBORDERS) && rcSep.right < rcClient.right - 16) {
 					--rcSep.bottom, rcSep.left = rcSep.right - 1;
 					FillRect(hdc, &rcSep, brBorder);
 				}
 			}
 		}
 
-		// Draw resize corner
-		SetDCBrushColor(hdc, RGB(0xBF, 0xBF, 0xBF));
-		rcClient.bottom -= 2, rcClient.right -= 8, rcClient.top = rcClient.bottom - 2, rcClient.left = rcClient.right - 2;
-		FillRect(hdc, &rcClient, brBorder);
-		for (int i = 0; i < 2; ++i) {
-			OffsetRect(&rcClient, 3, 0);
-			FillRect(hdc, &rcClient, brBorder);
-		}
-		for (int i = 0; i < 2; ++i) {
-			OffsetRect(&rcClient, 0, -3);
-			FillRect(hdc, &rcClient, brBorder);
-		}
-		OffsetRect(&rcClient, -3, 3);
-		FillRect(hdc, &rcClient, brBorder);
+		//// Draw resize corner
+		//SetDCBrushColor(hdc, RGB(0xBF, 0xBF, 0xBF));
+		//rcClient.bottom -= 2, rcClient.right -= 8, rcClient.top = rcClient.bottom - 2, rcClient.left = rcClient.right - 2;
+		//FillRect(hdc, &rcClient, brBorder);
+		//for (int i = 0; i < 2; ++i) {
+		//	OffsetRect(&rcClient, 3, 0);
+		//	FillRect(hdc, &rcClient, brBorder);
+		//}
+		//for (int i = 0; i < 2; ++i) {
+		//	OffsetRect(&rcClient, 0, -3);
+		//	FillRect(hdc, &rcClient, brBorder);
+		//}
+		//OffsetRect(&rcClient, -3, 3);
+		//FillRect(hdc, &rcClient, brBorder);
 
-		EndPaint(hWnd, &ps);
-		return 0;
+		//EndPaint(hWnd, &ps);
+		//return 0;
 	}
 	return DefSubclassProc(hWnd,uMsg,wParam,lParam);
 }
